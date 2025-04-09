@@ -1,0 +1,6 @@
+.cli
+.env
+node_modules
+.clinerules
+dist
+.vscode

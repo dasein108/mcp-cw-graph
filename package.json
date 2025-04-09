@@ -1,0 +1,21 @@
+{
+  "name": "cw-social-mcp",
+  "version": "1.0.0",
+  "description": "Cosmos Social Graph MCP Server",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts"
+  },
+  "dependencies": {
+    "@cosmjs/cosmwasm-stargate": "^0.33.1",
+    "@modelcontextprotocol/sdk": "^1.8.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.14",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.2"
+  }
+}
