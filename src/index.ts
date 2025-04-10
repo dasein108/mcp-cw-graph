@@ -10,10 +10,79 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { CyberlinkService } from './cyberlink-service';
 
+/**
+ * Format transaction result for response
+ * @param result Transaction result from CyberlinkService
+ * @returns Formatted response object
+ */
+function formatTransactionResponse(result: any) {
+  if (result?.status === 'failed') {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Operation failed: ${result?.error || 'Unknown error'}`
+        },
+        {
+          type: 'text',
+          text: JSON.stringify(result)
+        }
+      ]
+    };
+  }
+
+  const txHash = result?.transactionHash || '';
+  const numericId = result?.result?.numeric_id;
+  const formattedId = result?.result?.formatted_id;
+
+  const responseContent = [
+    {
+      type: 'text',
+      text: `Operation completed successfully.`
+    }
+  ];
+
+  if (txHash) {
+    responseContent.push({
+      type: 'text',
+      text: `Transaction hash: ${txHash}`
+    });
+  }
+
+  if (numericId) {
+    responseContent.push({
+      type: 'text',
+      text: `Numeric ID: ${numericId}`
+    });
+  }
+
+  if (formattedId) {
+    responseContent.push({
+      type: 'text',
+      text: `Formatted ID: ${formattedId}`
+    });
+  }
+
+  responseContent.push({
+    type: 'text',
+    text: JSON.stringify(result)
+  });
+
+  return { content: responseContent };
+}
+
+
+
 async function main() {
   try {
+    // Get environment variables directly
+    const nodeUrl = process.env.NODE_URL;
+    const walletMnemonic = process.env.WALLET_MNEMONIC;
+    const contractAddress = process.env.CONTRACT_ADDRESS;
+    const denom = process.env.DENOM || 'stake';
+
     // Initialize CyberlinkService
-    const cyberlinkService = new CyberlinkService();
+    const cyberlinkService = new CyberlinkService(nodeUrl!, walletMnemonic!, contractAddress!, denom);
     await cyberlinkService.initialize();
 
     // Initialize MCP Server
@@ -36,13 +105,13 @@ async function main() {
         // CRUD operations
         {
           name: 'create_cyberlink',
-          description: 'Create a new cyberlink',
+          description: 'Create a new cyberlink and wait for confirmation. Returns transaction details including numeric_id and formatted_id.',
           inputSchema: {
             type: "object",
             properties: {
               type: { type: "string", description: "Type of the cyberlink" },
-              from: { type: "string", description: "Source of the cyberlink" },
-              to: { type: "string", description: "Target of the cyberlink" },
+              from: { type: "string", description: "Source of the cyberlink(formatted_id)" },
+              to: { type: "string", description: "Target of the cyberlink(formatted_id)" },
               value: { type: "string", description: "Value for the cyberlink" }
             },
             required: ["type"]
@@ -50,7 +119,7 @@ async function main() {
         },
         {
           name: 'create_named_cyberlink',
-          description: 'Create a named cyberlink',
+          description: 'Create a named cyberlink and wait for confirmation. Returns transaction details including numeric_id and formatted_id.',
           inputSchema: {
             type: "object",
             properties: {
@@ -71,7 +140,7 @@ async function main() {
         },
         {
           name: 'create_cyberlinks',
-          description: 'Create multiple cyberlinks in batch',
+          description: 'Create multiple cyberlinks in batch and wait for confirmation. Returns transaction details including numeric_id and formatted_id.',
           inputSchema: {
             type: "object",
             properties: {
@@ -94,7 +163,7 @@ async function main() {
         },
         {
           name: 'update_cyberlink',
-          description: 'Update an existing cyberlink',
+          description: 'Update an existing cyberlink and wait for confirmation. Returns transaction details including numeric_id and formatted_id.',
           inputSchema: {
             type: "object",
             properties: {
@@ -115,7 +184,7 @@ async function main() {
         },
         {
           name: 'delete_cyberlink',
-          description: 'Delete a cyberlink',
+          description: 'Delete a cyberlink and wait for confirmation. Returns transaction details.',
           inputSchema: {
             type: "object",
             properties: {
@@ -161,7 +230,7 @@ async function main() {
             type: "object",
             properties: {
               start_after: { 
-                type: ["number", "string"], 
+                type: "number", 
                 description: "Start cursor for pagination" 
               },
               limit: { 
@@ -185,7 +254,7 @@ async function main() {
                 description: "Owner address to filter by" 
               },
               start_after: { 
-                type: ["number", "string"], 
+                type: "number", 
                 description: "Start cursor for pagination" 
               },
               limit: { 
@@ -272,7 +341,7 @@ async function main() {
             type: "object",
             properties: {
               start_after: { 
-                type: ["number", "string"], 
+                type: "number", 
                 description: "Start cursor for pagination" 
               },
               limit: { 
@@ -330,22 +399,41 @@ async function main() {
             properties: {}
           }
         },
-        
-        // Transaction status
+
+        // 12. Query wallet balance
         {
-          name: 'get_tx_status',
-          description: 'Check transaction status and get cyberlink ID',
+          name: 'query_wallet_balance',
+          description: 'Return the wallet address and all token balances',
+          inputSchema: {
+            type: "object",
+            properties: {}
+          }
+        },
+
+        // 13. Send tokens
+        {
+          name: 'send_tokens',
+          description: 'Send tokens from your wallet to another address',
           inputSchema: {
             type: "object",
             properties: {
-              transactionHash: { 
-                type: "string", 
-                description: "The transaction hash to check" 
+              recipient: {
+                type: "string",
+                description: "Recipient wallet address"
+              },
+              amount: {
+                type: "string",
+                description: "Amount of tokens to send (e.g. '100000')"
+              },
+              denom: {
+                type: "string",
+                description: `Token denomination (e.g. '${denom}')`,
+                default: denom
               }
             },
-            required: ["transactionHash"]
+            required: ["recipient", "amount"]
           }
-        }
+        },
       ]
     }));
 
@@ -431,16 +519,14 @@ async function main() {
               result = await cyberlinkService.queryDebugState();
               break;
               
-            // Original query handlers
-            case 'get_tx_status':
-              result = await cyberlinkService.getTxStatus(args.transactionHash);
+            case 'query_wallet_balance':
+              result = await cyberlinkService.queryWalletBalance();
               break;
               
             default:
               throw new McpError(ErrorCode.MethodNotFound, `Unknown query operation: ${operationName}`);
           }
           
-          // Return query results directly as JSON object
           return { 
             content: [{
               type: 'text',
@@ -453,12 +539,13 @@ async function main() {
         const handleCrudOperation = async (operationName: string, args: any) => {
           let result;
           
+          // server.sendLoggingMessage({
+          //   level: "info",
+          //   data: `Executing ${operationName} with args: ${JSON.stringify(args)}`,
+          // });
+          
           switch (operationName) {
             case 'create_cyberlink':
-              server.sendLoggingMessage({
-                level: "info",
-                data: `Creating cyberlink: ${JSON.stringify(args)}`,
-              });
               result = await cyberlinkService.createCyberlink(args);
               break;
             case 'create_named_cyberlink':
@@ -473,45 +560,19 @@ async function main() {
             case 'delete_cyberlink':
               result = await cyberlinkService.deleteCyberlink(args.id);
               break;
+
+            case 'send_tokens':
+              result = await cyberlinkService.sendTokens(args.recipient, args.amount, args.denom);
+              break;
             default:
               throw new McpError(ErrorCode.MethodNotFound, `Unknown CRUD operation: ${operationName}`);
           }
           
-          // For CRUD operations, include a success message with the transaction details
-          const txHash = result?.transactionHash || '';
-          const status = result?.status || '';
-          
-          if (status === 'failed') {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: `Operation failed: ${result?.error || 'Unknown error'}`
-                },
-                {
-                  type: 'text',
-                  text: JSON.stringify(result)
-                }
-              ]
-            };
-          }
-          
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Operation completed successfully. Transaction hash: ${txHash}`
-              },
-              {
-                type: 'text',
-                text: JSON.stringify(result)
-              }
-            ]
-          };
+          return formatTransactionResponse(result);
         };
         
         // Determine the type of operation and use the appropriate handler
-        const isQueryOperation = name.startsWith('query_') || name === 'get_tx_status';
+        const isQueryOperation = name.startsWith('query_');
         
         if (isQueryOperation) {
           return await handleQueryOperation(name, args);

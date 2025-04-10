@@ -1,0 +1,265 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Chat History Storage Rules
+
+## Core Principles
+1. Every conversation MUST be tracked as a Thread
+2. Every message (system/user/assistant) MUST be stored as a Message
+3. Every Message MUST be linked to its Thread via ThreadMessage relationship
+4. All metadata MUST be comprehensive and maintained
+
+## Data Structure Example
+
+```typescript
+// 1. Thread Entity (Created once per conversation)
+const thread = {
+  type: "Thread",
+  value: {
+    title: "Code Review Discussion",
+    created_at: "2024-03-20T10:30:00Z",
+    status: "active",
+    model_config: {
+      model_name: "claude-3-sonnet",
+      temperature: 0.7,
+      max_tokens: 1000
+    },
+    metadata: {
+      total_messages: 0,
+      conversation_duration: "0 minutes",
+      primary_topic: "code_review",
+      subtopics: ["typescript", "testing"],
+      code_files_referenced: ["src/main.ts"]
+    }
+  }
+};
+
+// 2. Message Entity (Created for EVERY message)
+const message = {
+  type: "Message",
+  value: {
+    content: "How can I improve this code? ARRRRR!", // Note: ARRRRR! suffix is required
+    role: "user", // "system" | "user" | "assistant"
+    metadata: {
+      tokens: 7,
+      type: "question", // See Message Types below
+      timestamp: "2024-03-20T10:31:00Z",
+      context: "src/main.ts",
+      code_references: ["src/main.ts:15-20"],
+      concepts: ["code_quality", "refactoring"],
+      files_referenced: ["src/main.ts"]
+    }
+  }
+};
+
+// 3. ThreadMessage Relationship (Links Message to Thread)
+const threadMessage = {
+  type: "ThreadMessage",
+  from: "thread:123", // Thread formatted_id
+  to: "message:456",  // Message formatted_id
+  value: {
+    position: 1,
+    timestamp: "2024-03-20T10:31:00Z"
+  }
+};
+```
+
+## Message Types
+- `system_prompt`: System instructions
+- `question`: User queries
+- `answer`: Assistant responses
+- `follow_up_question`: User follow-ups
+- `explanation`: Technical explanations
+- `refactor_request`: Code changes
+- `code_edit`: Code modifications
+
+## Required Metadata
+
+### Thread Metadata
+- `total_messages`: Count of messages
+- `conversation_duration`: Time since creation
+- `primary_topic`: Main discussion topic
+- `subtopics`: Related topics array
+- `code_files_referenced`: Referenced files
+
+### Message Metadata
+- `tokens`: Token count
+- `type`: Message type (from types above)
+- `timestamp`: ISO 8601 timestamp
+- `context`: Current file context
+- `code_references`: Code snippets referenced
+- `concepts`: Technical concepts discussed
+- `files_referenced`: Files mentioned
+
+## Storage Rules
+1. Create Thread FIRST with complete metadata
+2. Create Message for EVERY interaction
+3. Link each Message to Thread via ThreadMessage
+4. Update Thread metadata after each message
+5. Include "ARRRRR!" suffix in all message content
+6. Use formatted_ids (e.g., "thread:123", "message:456")
+7. Store all timestamps in ISO 8601 format
+8. Maintain chronological message order via position
+
+## Implementation Note
+Use mcp_cw_graph_* tools for all operations:
+- `mcp_cw_graph_create_cyberlink`: Create entities
+- `mcp_cw_graph_create_named_cyberlink`: Create named relationships
+- `mcp_cw_graph_update_cyberlink`: Update metadata
+- `mcp_cw_graph_query_*`: Query operations
+
+## MCP Server Configuration
+- Server: cw-graph
+- Tools: mcp_cw_graph_* commands
+
+## Storage Structure
+
+### 1. Create Thread (Automatic - Once per conversation)
+```typescript
+async function createAndStoreThread() {
+  const threadResponse = await mcp_cw_graph_create_cyberlink({
+    type: "Thread",
+    value: {
+      title: "Conversation Title",
+      created_at: new Date().toISOString(),
+      status: "active",
+      model_config: {
+        model_name: "claude-3-sonnet",
+        temperature: 0.7,
+        max_tokens: 1000,
+        top_p: 1,
+        frequency_penalty: 0,
+        presence_penalty: 0
+      },
+      metadata: {
+        total_messages: 0,
+        conversation_duration: "0 minutes",
+        primary_topic: "",
+        subtopics: [],
+        code_files_referenced: []
+      }
+    }
+  });
+
+  return threadResponse.formatted_id;
+}
+```
+
+### 2. Store Messages (Automatic - Every Message)
+```typescript
+async function createMessage(content: string, role: string, context: any = {}) {
+  const messageResponse = await mcp_cw_graph_create_cyberlink({
+    type: "Message",
+    value: {
+      content: `${content} ARRRRR!`,
+      role: role, // "system" | "user" | "assistant"
+      metadata: {
+        tokens: calculateTokens(content),
+        type: getMessageType(role, content),  // e.g. "system_prompt" | "question" | "answer" | "follow_up_question" | "explanation" | "refactor_request"
+        timestamp: new Date().toISOString(),
+        context: context.currentFile || null,
+        code_references: context.codeReferences || [],
+        concepts: context.concepts || [],
+        files_referenced: context.filesReferenced || []
+      }
+    }
+  });
+
+  return messageResponse.formatted_id;
+}
+```
+
+### 3. Link Thread to Message (Automatic - Every Message)
+```typescript
+async function createThreadMessage(threadId: string, messageId: string) {
+  await mcp_cw_graph_create_cyberlink({
+    type: "ThreadMessage",
+    from: threadId,
+    to: messageId
+  });
+}
+```
+
+### 4. Update Thread Metadata (After Each Message)
+```typescript
+async function updateThreadMetadata(threadId: string, metadata: any) {
+  await mcp_cw_graph_update_cyberlink({
+    id: extractNumericId(threadId),
+    cyberlink: {
+      type: "Thread",
+      value: {
+        metadata: {
+          total_messages: metadata.totalMessages,
+          conversation_duration: calculateDuration(metadata.startTime),
+          primary_topic: metadata.primaryTopic,
+          subtopics: metadata.subtopics,
+          code_files_referenced: metadata.codeFilesReferenced
+        }
+      }
+    }
+  });
+}
+```
+
+## Message Types and Roles
+
+### Roles
+- `system`: System prompts and instructions
+- `user`: User queries and requests
+- `assistant`: AI responses and actions
+
+### Message Types
+- `system_prompt`: Initial system instructions
+- `question`: User's initial questions
+- `answer`: Assistant's direct answers
+- `follow_up_question`: User's follow-up questions
+- `explanation`: Detailed technical explanations
+- `refactor_request`: Code refactoring requests
+- `detailed_explanation`: In-depth technical discussions
+- `code_edit`: Code modification proposals
+
+## Metadata Fields
+
+### Thread Metadata
+- `conversation_duration`: Duration since thread creation
+- `primary_topic`: Main conversation topic
+- `subtopics`: Array of related topics
+- `code_files_referenced`: Array of referenced file paths
+
+### Message Metadata
+- `tokens`: Approximate token count
+- `type`: Message type (from types above)
+- `timestamp`: ISO timestamp
+- `context`: Current file context if any
+- `code_references`: Array of referenced code files
+- `concepts`: Array of technical concepts discussed
+- `files_referenced`: Array of files mentioned in message
+
+## Implementation Requirements
+
+1. **Thread Creation**
+   - Create at conversation start
+   - Include complete model configuration
+   - Initialize metadata tracking
+   - Store Thread ID for entire conversation
+
+2. **Message Handling**
+   - Create for all message types
+   - Include role and complete metadata
+   - Track code references and concepts
+
+3. **Metadata Management**
+   - Update thread metadata after each message
+   - Track conversation duration
+   - Maintain list of referenced files
+   - Record technical concepts and topics
+
+4. **Storage Consistency**
+   - Ensure all messages are linked to thread
+   - Maintain chronological order
+   - Keep metadata fields up to date
+   - Handle all message types appropriately
+
+

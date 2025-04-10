@@ -57,7 +57,8 @@ Add the following configuration:
         "env": {
             "NODE_URL": "http://localhost:26657",
             "WALLET_MNEMONIC": "your wallet mnemonic phrase",
-            "CONTRACT_ADDRESS": "your contract address"
+            "CONTRACT_ADDRESS": "your contract address",
+            "DENOM": "stake"
             }
         }
     }
@@ -69,6 +70,7 @@ Replace the following values:
 - `NODE_URL`: Your Cosmos node URL
 - `WALLET_MNEMONIC`: Your wallet's mnemonic phrase
 - `CONTRACT_ADDRESS`: Your deployed contract address
+- `DENOM`: (Optional) Token denomination, defaults to 'stake'
 
 The configuration uses stdio format for communication between the MCP server and the clients (Cursor/Claude Desktop).
 
@@ -85,7 +87,8 @@ The configuration uses stdio format for communication between the MCP server and
    - query_named_cyberlinks
    - query_cyberlinks_by_owner
    - query_config
-   - get_tx_status
+   - query_wallet_balance
+   - send_tokens
 
 ## Development
 
@@ -106,9 +109,21 @@ src/
 ├── index.ts             # Main entry point
 ├── cyberlink-service.ts # Cyberlink and blockchain operations
 └── types.ts             # TypeScript types and schemas
+
+cursor_rules/
+└── chat_history.mdc    # Rules for chat history storage
 ```
 
+## Cursor Rules
+
+The project includes cursor rules that define behavior for specific features:
+
+- **Chat History Storage**: Rules defining how chat history is stored and managed within the system. These rules ensure consistent handling of conversation data across the MCP server.
+
+Copy rules into `./cursor/rules` directory
+
 ## MCP Tools
+
 
 ### Creation and Modification
 - `mcp_cw_graph_create_cyberlink` - Create a new cyberlink
@@ -133,21 +148,31 @@ src/
 - `mcp_cw_graph_query_last_id` - Get the last assigned cyberlink ID
 - `mcp_cw_graph_query_config` - Query contract configuration
 - `mcp_cw_graph_query_debug_state` - Query contract debug state (admin only)
-- `mcp_cw_graph_get_tx_status` - Check transaction status and get cyberlink ID
+- `mcp_cw_graph_get_tx_status` - Check transaction status and get cyberlink IDs
+
+### Wallet Operations
+- `mcp_cw_graph_query_wallet_balance` - Get wallet address and token balances
+- `mcp_cw_graph_send_tokens` - Send tokens to another wallet address
 
 ## Query Parameters
 
 ### Time Range Queries
 - `owner` - Owner address to filter by
-- `start_time` - Start time in nanoseconds (string format)
-- `end_time` - Optional end time in nanoseconds (string format)
-- `start_after` - Optional pagination cursor
+- `start_time` - Start time in nanoseconds (Uint64, can be passed as string or number)
+- `end_time` - Optional end time in nanoseconds (Uint64, can be passed as string or number)
+- `start_after` - Optional pagination cursor (Uint64, can be passed as string or number)
 - `limit` - Optional result limit (default: 50)
 
 ### Pagination
 Most query endpoints support pagination with:
-- `start_after` - Cursor for the next page
+- `start_after` - Cursor for the next page (Uint64, can be passed as string or number)
 - `limit` - Maximum number of results to return
+
+### Data Types
+- **Timestamps**: All timestamp fields use Uint64 format (nanoseconds since Unix epoch)
+  - Can be passed as string to preserve precision for large values
+  - Also accepts number format for backward compatibility
+  - Example: "1683900000000000000" (string) or 1683900000000000000 (number)
 
 ## Error Handling
 

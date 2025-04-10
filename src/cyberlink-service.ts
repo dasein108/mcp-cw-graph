@@ -56,12 +56,8 @@ export class CyberlinkService {
   private readonly contractAddress: string;
   private readonly denom: string;
 
-  constructor() {
-    // Get environment variables directly
-    const nodeUrl = process.env.NODE_URL;
-    const walletMnemonic = process.env.WALLET_MNEMONIC;
-    const contractAddress = process.env.CONTRACT_ADDRESS;
-    const denom = process.env.DENOM || 'stake';
+  constructor(nodeUrl: string, walletMnemonic: string, contractAddress: string, denom: string) {
+
     // Validate required environment variables
     if (!nodeUrl) throw new Error('Missing NODE_URL environment variable');
     if (!walletMnemonic) throw new Error('Missing WALLET_MNEMONIC environment variable');
@@ -70,7 +66,7 @@ export class CyberlinkService {
     this.nodeUrl = nodeUrl;
     this.walletMnemonic = walletMnemonic;
     this.contractAddress = contractAddress;
-    this.denom = denom;
+    this.denom = denom || 'stake';
   }
 
   async initialize(): Promise<void> {
@@ -276,12 +272,77 @@ export class CyberlinkService {
     }
   }
 
+  async queryWalletBalance(): Promise<{address: string, balances: {denom: string, amount: string}[]}> {
+    this.ensureInitialized();
+    const [account] = await this.wallet!.getAccounts();
+    const address = account.address;
+    const balance = await this.signingClient!.getBalance(address, this.denom);
+    const {denom, amount} = balance;
+    
+    
+    return {
+      address,
+      balances: [{denom, amount}]
+    };
+  }
+
+  async sendTokens(
+    recipient: string,
+    amount: string,
+    denom: string = this.denom
+  ): Promise<TxResponse> {
+    this.ensureInitialized();
+    const [sender] = await this.wallet!.getAccounts();
+    
+    try {
+      const result = await this.signingClient!.sendTokens(
+        sender.address,
+        recipient,
+        [{denom, amount}],
+        'auto'
+      );
+
+      return {
+        status: 'completed',
+        transactionHash: result.transactionHash
+      };
+    } catch (error) {
+      return {
+        status: 'failed',
+        transactionHash: '',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
   // HELPER METHODS
 
   private ensureInitialized(): void {
     if (!this.cosmWasmClient || !this.signingClient || !this.wallet) {
       throw new Error('CyberlinkService not initialized');
     }
+  }
+
+  private async waitForTransaction(txHash: string, timeoutMs: number = 30000, pollIntervalMs: number = 1000): Promise<{numeric_id?: string, formatted_id?: string}> {
+    const startTime = Date.now();
+    
+    while (Date.now() - startTime < timeoutMs) {
+      const status = await this.getTxStatus(txHash);
+      
+      if (status.status === 'confirmed') {
+        return {
+          numeric_id: status.numeric_id,
+          formatted_id: status.formatted_id
+        };
+      } else if (status.status === 'failed') {
+        throw new Error(status.error || 'Transaction failed');
+      }
+      
+      // Wait for the polling interval
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+    
+    throw new Error(`Transaction confirmation timed out after ${timeoutMs}ms`);
   }
 
   private async executeTx(msg: any): Promise<TxResponse> {
@@ -293,11 +354,6 @@ export class CyberlinkService {
         throw new Error('No accounts found');
       }
 
-      // const fee = {
-      //   amount: [{ amount: "3", denom: this.denom }],
-      //   gas: "auto"
-      // };
-
       const senderAddress = accounts[0].address;
       const result = await this.signingClient!.execute(
         senderAddress,
@@ -306,18 +362,21 @@ export class CyberlinkService {
         'auto'
       );
       
+      // Wait for transaction confirmation and get IDs
+      const txResult = await this.waitForTransaction(result.transactionHash);
       
       // Extract only the essential information from the result
       const simplifiedResult = {
         transactionHash: result.transactionHash,
         height: result.height,
         gasUsed: result.gasUsed,
-        gasWanted: result.gasWanted
+        gasWanted: result.gasWanted,
+        ...txResult // Include numeric_id and formatted_id
       };
       
       return { 
         transactionHash: result.transactionHash,
-        status: 'completed', 
+        status: 'completed',
         result: sanitizeResult(simplifiedResult)
       };
     } catch (error) {
