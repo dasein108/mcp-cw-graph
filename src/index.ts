@@ -9,6 +9,7 @@ import {
   ErrorCode
 } from '@modelcontextprotocol/sdk/types.js';
 import { CyberlinkService } from './cyberlink-service';
+import { millisecondsToNanosecondsWithDefault } from './utils';
 
 /**
  * Format transaction result for response
@@ -128,8 +129,8 @@ async function main() {
                 type: "object",
                 properties: {
                   type: { type: "string", description: "Type of the cyberlink" },
-                  from: { type: "string", description: "Source of the cyberlink" },
-                  to: { type: "string", description: "Target of the cyberlink" },
+                  from: { type: "string", description: "Source of the cyberlink(formatted_id)" },
+                  to: { type: "string", description: "Target of the cyberlink(formatted_id)" },
                   value: { type: "string", description: "Value for the cyberlink" }
                 },
                 required: ["type"]
@@ -150,8 +151,8 @@ async function main() {
                   type: "object",
                   properties: {
                     type: { type: "string", description: "Type of the cyberlink" },
-                    from: { type: "string", description: "Source of the cyberlink" },
-                    to: { type: "string", description: "Target of the cyberlink" },
+                    from: { type: "string", description: "Source of the cyberlink(formatted_id)" },
+                    to: { type: "string", description: "Target of the cyberlink(formatted_id)" },
                     value: { type: "string", description: "Value for the cyberlink" }
                   },
                   required: ["type"]
@@ -279,15 +280,15 @@ async function main() {
                 description: "Owner address to filter by" 
               },
               start_time: { 
-                type: ["number", "string"], 
-                description: "Start time for time range query (nanosecond timestamp)" 
+                type: "string", 
+                description: "Start time for time range query (millisecond timestamp)" 
               },
               end_time: { 
-                type: ["number", "string"], 
-                description: "End time for time range query (nanosecond timestamp)" 
+                type: "string", 
+                description: "End time for time range query (millisecond timestamp)" 
               },
               start_after: { 
-                type: ["number", "string"], 
+                type: "string", 
                 description: "Start cursor for pagination" 
               },
               limit: { 
@@ -312,15 +313,15 @@ async function main() {
                 description: "Owner address to filter by" 
               },
               start_time: { 
-                type: ["number", "string"], 
-                description: "Start time for time range query (nanosecond timestamp)" 
+                type: "string", 
+                description: "Start time for time range query (millisecond timestamp)" 
               },
               end_time: { 
-                type: ["number", "string"], 
-                description: "End time for time range query (nanosecond timestamp)" 
+                type: "string", 
+                description: "End time for time range query (millisecond timestamp)" 
               },
               start_after: { 
-                type: ["number", "string"], 
+                type: "string", 
                 description: "Start cursor for pagination" 
               },
               limit: { 
@@ -474,10 +475,10 @@ async function main() {
               
             // Query by time range (creation time)
             case 'query_by_time_range':
-              result = await cyberlinkService.queryByTimeRangeAny(
+              result = await cyberlinkService.queryByTimeRange(
                 args.owner,
-                args.start_time,
-                args.end_time,
+                millisecondsToNanosecondsWithDefault(args.start_time),
+                millisecondsToNanosecondsWithDefault(args.end_time, Date.now()),
                 args.start_after,
                 args.limit || 50
               );
@@ -487,8 +488,8 @@ async function main() {
             case 'query_by_time_range_any':
               result = await cyberlinkService.queryByTimeRangeAny(
                 args.owner,
-                args.start_time,
-                args.end_time,
+                millisecondsToNanosecondsWithDefault(args.start_time),
+                millisecondsToNanosecondsWithDefault(args.end_time, Date.now()),
                 args.start_after,
                 args.limit || 50
               );
@@ -535,8 +536,8 @@ async function main() {
           };
         };
         
-        // Handler for CRUD operations
-        const handleCrudOperation = async (operationName: string, args: any) => {
+        // Handler for execution operations
+        const handleExecutionOperation = async (operationName: string, args: any) => {
           let result;
           
           // server.sendLoggingMessage({
@@ -565,7 +566,7 @@ async function main() {
               result = await cyberlinkService.sendTokens(args.recipient, args.amount, args.denom);
               break;
             default:
-              throw new McpError(ErrorCode.MethodNotFound, `Unknown CRUD operation: ${operationName}`);
+              throw new McpError(ErrorCode.MethodNotFound, `Unknown execution operation: ${operationName}`);
           }
           
           return formatTransactionResponse(result);
@@ -577,7 +578,7 @@ async function main() {
         if (isQueryOperation) {
           return await handleQueryOperation(name, args);
         } else {
-          return await handleCrudOperation(name, args);
+          return await handleExecutionOperation(name, args);
         }
       } catch (error) {
         if (error instanceof McpError) {

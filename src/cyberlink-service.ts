@@ -167,14 +167,35 @@ export class CyberlinkService {
 
   async queryByTimeRangeAny(
     owner: string,
-    startTime: number | string,
+    startTime?: number | string,
+    endTime?: number | string,
+    startAfter?: number | string,
+    limit?: number
+  ): Promise<Record<number, CyberlinkState>> {
+ 
+    return this.executeQuery(
+      {
+        cyberlinks_by_owner_time_any: {
+          owner,
+          start_time: startTime,
+          end_time: endTime,
+          start_after: startAfter,
+          limit
+        }
+      },
+    );
+  }
+
+  async queryByTimeRange(
+    owner: string,
+    startTime?: number | string,
     endTime?: number | string,
     startAfter?: number | string,
     limit?: number
   ): Promise<Record<number, CyberlinkState>> {
     return this.executeQuery(
       {
-        cyberlinks_by_owner_time_any: {
+        cyberlinks_by_owner_time: {
           owner,
           start_time: startTime,
           end_time: endTime,
