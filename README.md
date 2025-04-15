@@ -12,6 +12,12 @@ A Model Context Protocol (MCP) server for interacting with the CW-Social smart c
 - Input validation
 - Error handling
 - Integration with Cursor IDE and Claude Desktop
+- Semantic embedding generation using Hugging Face transformers
+- Real-time progress tracking for model loading
+- Cosine similarity calculations for semantic comparisons
+- Support for formatted IDs and numeric IDs
+- Time-range based queries
+- Owner-based filtering
 
 ## Prerequisites
 
@@ -25,17 +31,20 @@ A Model Context Protocol (MCP) server for interacting with the CW-Social smart c
 ## Installation and Setup
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/your-org/cw-social-mcp.git
 cd cw-social-mcp
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Build the project:
+
 ```bash
 npm run build
 ```
@@ -50,22 +59,23 @@ Add the following configuration:
 
 ```json
 {
-    "mcpServers": {
-        "cw-graph": {
-        "command": "node",
-        "args": ["PATH_TO_YOUR_PROJECT/dist/index.js"],
-        "env": {
-            "NODE_URL": "http://localhost:26657",
-            "WALLET_MNEMONIC": "your wallet mnemonic phrase",
-            "CONTRACT_ADDRESS": "your contract address",
-            "DENOM": "stake"
-            }
-        }
+  "mcpServers": {
+    "cw-graph": {
+      "command": "node",
+      "args": ["PATH_TO_YOUR_PROJECT/dist/index.js"],
+      "env": {
+        "NODE_URL": "http://localhost:26657",
+        "WALLET_MNEMONIC": "your wallet mnemonic phrase",
+        "CONTRACT_ADDRESS": "your contract address",
+        "DENOM": "stake"
+      }
     }
+  }
 }
 ```
 
 Replace the following values:
+
 - `PATH_TO_YOUR_PROJECT`: Absolute path to your cw-social-mcp project
 - `NODE_URL`: Your Cosmos node URL
 - `WALLET_MNEMONIC`: Your wallet's mnemonic phrase
@@ -78,26 +88,45 @@ The configuration uses stdio format for communication between the MCP server and
 
 1. Restart Cursor IDE or Claude Desktop after configuration
 2. The following tools should be available:
-   - create_cyberlink
-   - create_named_cyberlink
-   - create_cyberlinks
-   - update_cyberlink
-   - delete_cyberlink
-   - query_cyberlinks
-   - query_named_cyberlinks
-   - query_cyberlinks_by_owner
-   - query_config
-   - query_wallet_balance
-   - send_tokens
+
+### Creation and Modification
+
+- create_cyberlink - Create a new cyberlink
+- create_named_cyberlink - Create a named cyberlink with identifier
+- create_cyberlinks - Create multiple cyberlinks in batch
+- update_cyberlink - Update an existing cyberlink by ID
+- delete_cyberlink - Delete a cyberlink by ID
+- update_with_embedding - Update cyberlink with semantic embedding
+
+### Query Operations
+
+- query_by_id - Query cyberlink by numeric ID
+- query_by_formatted_id - Query cyberlink by formatted ID
+- query_cyberlinks - Query all cyberlinks with pagination
+- query_named_cyberlinks - Query all named cyberlinks
+- query_by_ids - Query multiple cyberlinks by their IDs
+- query_by_owner - Query cyberlinks by owner address
+- query_by_time_range - Query cyberlinks by creation time
+- query_by_time_range_any - Query cyberlinks by creation/update time
+- query_last_id - Get last assigned cyberlink ID
+- query_config - Query contract configuration
+- query_debug_state - Query debug state (admin only)
+
+### Wallet Operations
+
+- query_wallet_balance - Get wallet address and balances
+- send_tokens - Send tokens to another address
 
 ## Development
 
 1. Build the project:
+
 ```bash
 npm run build
 ```
 
 2. Start the server in development mode:
+
 ```bash
 npm run dev
 ```
@@ -106,13 +135,36 @@ npm run dev
 
 ```
 src/
-├── index.ts             # Main entry point
-├── cyberlink-service.ts # Cyberlink and blockchain operations
-└── types.ts             # TypeScript types and schemas
+├── index.ts                # Main entry point
+├── cyberlink-service.ts    # Cyberlink and blockchain operations
+├── services/
+│   ├── embedding.service.ts       # Semantic embedding generation
+│   └── __tests__/                # Service test files
+└── types.ts                # TypeScript types and schemas
 
 cursor_rules/
-└── chat_history.mdc    # Rules for chat history storage
+└── chat_history.mdc       # Rules for chat history storage
 ```
+
+## Services
+
+### Embedding Service
+
+The project includes a powerful embedding service that provides semantic analysis capabilities:
+
+- Uses the `sentence-transformers/all-MiniLM-L6-v2` model from Hugging Face
+- Generates normalized 384-dimensional embeddings for text
+- Real-time progress tracking during model initialization
+- Supports batch processing of text embeddings
+- Calculates semantic similarities using cosine similarity
+- Comprehensive error handling and progress reporting
+
+Example progress states during model initialization:
+
+1. Loading (0%) - Initial model loading
+2. Downloading (0-50%) - Model file download progress
+3. Loading (50-100%) - Loading model into memory
+4. Ready (100%) - Model successfully loaded
 
 ## Cursor Rules
 
@@ -124,8 +176,8 @@ Copy rules into `./cursor/rules` directory
 
 ## MCP Tools
 
-
 ### Creation and Modification
+
 - `mcp_cw_graph_create_cyberlink` - Create a new cyberlink
 - `mcp_cw_graph_create_named_cyberlink` - Create a named cyberlink with identifier
 - `mcp_cw_graph_create_cyberlinks` - Create multiple cyberlinks in batch
@@ -133,6 +185,7 @@ Copy rules into `./cursor/rules` directory
 - `mcp_cw_graph_delete_cyberlink` - Delete a cyberlink by ID
 
 ### Basic Queries
+
 - `mcp_cw_graph_query_by_id` - Query a single cyberlink by numeric ID
 - `mcp_cw_graph_query_by_formatted_id` - Query a cyberlink by its formatted ID
 - `mcp_cw_graph_query_cyberlinks` - Query all cyberlinks with pagination
@@ -140,23 +193,31 @@ Copy rules into `./cursor/rules` directory
 - `mcp_cw_graph_query_by_ids` - Query multiple cyberlinks by their IDs
 
 ### Advanced Queries
+
 - `mcp_cw_graph_query_by_owner` - Query cyberlinks by owner address
 - `mcp_cw_graph_query_by_time_range` - Query cyberlinks by creation time range
 - `mcp_cw_graph_query_by_time_range_any` - Query cyberlinks by creation or update time range
 
 ### System Queries
+
 - `mcp_cw_graph_query_last_id` - Get the last assigned cyberlink ID
 - `mcp_cw_graph_query_config` - Query contract configuration
 - `mcp_cw_graph_query_debug_state` - Query contract debug state (admin only)
 - `mcp_cw_graph_get_tx_status` - Check transaction status and get cyberlink IDs
 
 ### Wallet Operations
+
 - `mcp_cw_graph_query_wallet_balance` - Get wallet address and token balances
 - `mcp_cw_graph_send_tokens` - Send tokens to another wallet address
+
+### Embedding Operations
+
+- `mcp_cw_graph_update_with_embedding` - Generate and update cyberlink value with semantic embedding
 
 ## Query Parameters
 
 ### Time Range Queries
+
 - `owner` - Owner address to filter by
 - `start_time` - Start time in nanoseconds (Uint64, can be passed as string or number)
 - `end_time` - Optional end time in nanoseconds (Uint64, can be passed as string or number)
@@ -164,11 +225,14 @@ Copy rules into `./cursor/rules` directory
 - `limit` - Optional result limit (default: 50)
 
 ### Pagination
+
 Most query endpoints support pagination with:
+
 - `start_after` - Cursor for the next page (Uint64, can be passed as string or number)
 - `limit` - Maximum number of results to return
 
 ### Data Types
+
 - **Timestamps**: All timestamp fields use Uint64 format (nanoseconds since Unix epoch)
   - Can be passed as string to preserve precision for large values
   - Also accepts number format for backward compatibility
@@ -177,6 +241,7 @@ Most query endpoints support pagination with:
 ## Error Handling
 
 The server uses standardized error codes from the MCP protocol:
+
 - `InvalidParams` - Invalid input parameters
 - `MethodNotFound` - Unknown tool name
 - `InternalError` - Blockchain or server errors
@@ -191,4 +256,4 @@ The server uses standardized error codes from the MCP protocol:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
