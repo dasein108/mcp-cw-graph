@@ -115,7 +115,20 @@ The configuration uses stdio format for communication between the MCP server and
 ### Wallet Operations
 
 - query_wallet_balance - Get wallet address and balances
+
+  - Returns the current wallet address and all token balances
+  - No parameters required
+  - Response includes:
+    - `address`: The wallet's address
+    - `balances`: Array of token balances with denomination and amount
+
 - send_tokens - Send tokens to another address
+  - Required parameters:
+    - `recipient`: Target wallet address
+    - `amount`: Amount of tokens to send (as string, e.g. '100000')
+  - Optional parameters:
+    - `denom`: Token denomination (defaults to the value from environment config)
+  - Returns transaction details including hash and status
 
 ## Development
 

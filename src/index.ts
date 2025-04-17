@@ -127,6 +127,7 @@ async function main() {
     // CRUD Operations
     server.tool(
       'create_cyberlink',
+      'Creates a new semantic relationship (cyberlink) between entities in the social graph, such as posts, follows, or likes.',
       {
         type: z.string().describe('Type of the cyberlink'),
         from: z.string().optional().describe('Source of the cyberlink(formatted_id)'),
@@ -138,6 +139,7 @@ async function main() {
 
     server.tool(
       'create_named_cyberlink',
+      'Creates a named cyberlink that can be referenced by a human-readable identifier, restricted to admin use only.',
       {
         name: z.string().describe('Name of the cyberlink'),
         cyberlink: z.object({
@@ -155,6 +157,7 @@ async function main() {
 
     server.tool(
       'create_cyberlinks',
+      'Creates multiple cyberlinks in a single atomic transaction, ensuring all succeed or all fail.',
       {
         cyberlinks: z.array(
           z.object({
@@ -171,6 +174,7 @@ async function main() {
 
     server.tool(
       'update_cyberlink',
+      'Updates an existing cyberlink, allowing only the value field to be modified while preserving the relationship structure.',
       {
         id: z.number().describe('ID of the cyberlink to update'),
         cyberlink: z.object({
@@ -186,6 +190,7 @@ async function main() {
 
     server.tool(
       'delete_cyberlink',
+      'Permanently removes a cyberlink from the social graph, requiring owner or admin permissions.',
       {
         id: z.number().describe('ID of the cyberlink to delete'),
       },
@@ -195,6 +200,7 @@ async function main() {
     // Query Operations
     server.tool(
       'query_by_id',
+      'Retrieves complete information about a specific cyberlink using its numeric identifier.',
       {
         id: z.number().describe('Numeric ID of the cyberlink'),
       },
@@ -210,6 +216,7 @@ async function main() {
 
     server.tool(
       'query_by_formatted_id',
+      'Retrieves complete information about a specific cyberlink using its human-readable formatted identifier.',
       {
         formatted_id: z.string().describe('Formatted string ID of the cyberlink'),
       },
@@ -225,6 +232,7 @@ async function main() {
 
     server.tool(
       'query_cyberlinks',
+      'Queries multiple cyberlinks with pagination support and optional owner filtering, returning sorted results.',
       {
         start_after: z.number().optional().describe('Start cursor for pagination'),
         limit: z.number().default(50).describe('Maximum number of results to return'),
@@ -240,6 +248,7 @@ async function main() {
 
     server.tool(
       'update_with_embedding',
+      'Enhances a cyberlink by generating and adding a semantic embedding to its content for similarity-based operations.',
       {
         formatted_id: z.string().describe('Formatted ID of the cyberlink to update'),
       },
@@ -267,6 +276,39 @@ async function main() {
 
         return formatTxCyberlinkResponse(result);
       }
+    );
+
+    // Wallet Operations
+    server.tool(
+      'query_wallet_balance',
+      'Return the wallet address and all token balances',
+      {},
+      async () => ({
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify(await cyberlinkService.queryWalletBalance()),
+          },
+        ],
+      })
+    );
+
+    server.tool(
+      'send_tokens',
+      'Send tokens from your wallet to another address',
+      {
+        recipient: z.string().describe('Recipient wallet address'),
+        amount: z.string().describe("Amount of tokens to send (e.g. '100000')"),
+        denom: z
+          .string()
+          .optional()
+          .default(denom)
+          .describe(`Token denomination (e.g. '${denom}')`),
+      },
+      async (args) =>
+        formatTxCyberlinkResponse(
+          await cyberlinkService.sendTokens(args.recipient, args.amount, args.denom)
+        )
     );
 
     // Start Server
