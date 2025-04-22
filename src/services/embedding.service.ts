@@ -95,4 +95,41 @@ export class EmbeddingService {
 
     return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
   }
+
+  async updateWithEmbedding(formattedId: string): Promise<any> {
+    if (!this.pipe) {
+      throw new Error('EmbeddingService not initialized');
+    }
+
+    try {
+      this.progressCallback?.({
+        status: 'processing',
+        message: `Processing cyberlink ${formattedId}`,
+        progress: 0,
+        done: false,
+      });
+
+      const embedding = await this.generateEmbedding(formattedId);
+
+      this.progressCallback?.({
+        status: 'complete',
+        message: `Successfully generated embedding for ${formattedId}`,
+        progress: 1,
+        done: true,
+      });
+
+      return {
+        formatted_id: formattedId,
+        embedding: Array.from(embedding),
+      };
+    } catch (error) {
+      this.progressCallback?.({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        progress: 0,
+        done: true,
+      });
+      throw error;
+    }
+  }
 }

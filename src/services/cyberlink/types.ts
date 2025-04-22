@@ -68,7 +68,6 @@ export interface CyberlinksByOwnerTimeParams {
 
 // Response Types
 export interface TxResponse {
-  transactionHash: string; // Transaction hash
   status: 'completed' | 'pending' | 'failed'; // Transaction status
   result?: Record<string, any>; // Optional result data
   info?: Record<string, any>; // Optional transaction info
@@ -76,6 +75,7 @@ export interface TxResponse {
 }
 
 export interface TxCyberlinkResponseResult {
+  transaction_hash: string; // Transaction hash
   numeric_id?: string; // Created/updated cyberlink ID
   formatted_id?: string; // Created/updated formatted ID
   numeric_ids?: string[]; // Batch operation IDs
