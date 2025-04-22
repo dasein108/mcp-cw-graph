@@ -1,78 +1,297 @@
 #!/usr/bin/env node
-import 'dotenv/config';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { 
-  CallToolRequestSchema, 
-  ListToolsRequestSchema,
-  McpError,
-  ErrorCode
-} from '@modelcontextprotocol/sdk/types.js';
-import { CyberlinkService } from './cyberlink-service';
-import { millisecondsToNanosecondsWithDefault } from './utils';
+import 'dotenv/config';
+import { z } from 'zod';
+import { CyberlinkMessageService } from './services/cyberlink/message.service';
+import { CyberlinkQueryService } from './services/cyberlink/query.service';
+import { CyberlinkTxService } from './services/cyberlink/tx.service';
+import { EmbeddingService, type ProgressState } from './services/embedding.service';
+import { executeOrJustMsg, formatMsgResponse } from './utils/response.utils';
 
 /**
- * Format transaction result for response
- * @param result Transaction result from CyberlinkService
- * @returns Formatted response object
+ * Register all query-related tools
  */
-function formatTransactionResponse(result: any) {
-  if (result?.status === 'failed') {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Operation failed: ${result?.error || 'Unknown error'}`
-        },
-        {
-          type: 'text',
-          text: JSON.stringify(result)
-        }
-      ]
-    };
-  }
-
-  const txHash = result?.transactionHash || '';
-  const numericId = result?.result?.numeric_id;
-  const formattedId = result?.result?.formatted_id;
-
-  const responseContent = [
+function registerQueryTools(server: McpServer, cyberlinkQueryService: CyberlinkQueryService) {
+  server.tool(
+    'query_by_id',
+    'Retrieves complete information about a specific cyberlink using its numeric identifier.',
     {
-      type: 'text',
-      text: `Operation completed successfully.`
+      id: z.number().describe('Numeric ID of the cyberlink'),
+    },
+    async (args) => formatMsgResponse(await cyberlinkQueryService.queryById(args.id))
+  );
+
+  server.tool(
+    'query_by_formatted_id',
+    'Retrieves complete information about a specific cyberlink using its human-readable formatted identifier.',
+    {
+      formatted_id: z.string().describe('Formatted string ID of the cyberlink'),
+    },
+    async (args) =>
+      formatMsgResponse(await cyberlinkQueryService.queryByFormattedId(args.formatted_id))
+  );
+
+  server.tool(
+    'query_cyberlinks',
+    'Queries multiple cyberlinks with pagination support and optional owner filtering, returning sorted results.',
+    {
+      start_after: z.number().optional().describe('Start cursor for pagination'),
+      limit: z.number().default(50).describe('Maximum number of results to return'),
+      owner: z.string().optional().describe('Owner address to filter by'),
+    },
+    async (args) => {
+      const result = args.owner
+        ? await cyberlinkQueryService.queryByOwner(args.owner, args.start_after, args.limit)
+        : await cyberlinkQueryService.queryCyberlinks(args.start_after, args.limit);
+      return formatMsgResponse(result);
     }
-  ];
+  );
 
-  if (txHash) {
-    responseContent.push({
-      type: 'text',
-      text: `Transaction hash: ${txHash}`
-    });
-  }
+  server.tool(
+    'query_cyberlinks_by_type',
+    'Returns cyberlinks of a specific type with pagination support.',
+    {
+      type_: z.string().describe('Type to filter by'),
+      start_after_gid: z.number().optional().describe('ID to start after for pagination'),
+      limit: z.number().default(50).describe('Maximum number of results to return'),
+    },
+    async (args) =>
+      formatMsgResponse(
+        await cyberlinkQueryService.queryCyberlinksByType(
+          args.type_,
+          args.start_after_gid,
+          args.limit
+        )
+      )
+  );
 
-  if (numericId) {
-    responseContent.push({
-      type: 'text',
-      text: `Numeric ID: ${numericId}`
-    });
-  }
+  server.tool(
+    'query_cyberlinks_by_from',
+    'Returns cyberlinks originating from a specific node.',
+    {
+      from: z.string().describe("Source node's formatted ID"),
+      start_after_gid: z.number().optional().describe('ID to start after for pagination'),
+      limit: z.number().default(50).describe('Maximum number of results to return'),
+    },
+    async (args) =>
+      formatMsgResponse(
+        await cyberlinkQueryService.queryCyberlinksByFrom(
+          args.from,
+          args.start_after_gid,
+          args.limit
+        )
+      )
+  );
 
-  if (formattedId) {
-    responseContent.push({
-      type: 'text',
-      text: `Formatted ID: ${formattedId}`
-    });
-  }
+  server.tool(
+    'query_cyberlinks_by_to',
+    'Returns cyberlinks pointing to a specific node.',
+    {
+      to: z.string().describe("Target node's formatted ID"),
+      start_after_gid: z.number().optional().describe('ID to start after for pagination'),
+      limit: z.number().default(50).describe('Maximum number of results to return'),
+    },
+    async (args) =>
+      formatMsgResponse(
+        await cyberlinkQueryService.queryCyberlinksByTo(args.to, args.start_after_gid, args.limit)
+      )
+  );
 
-  responseContent.push({
-    type: 'text',
-    text: JSON.stringify(result)
-  });
+  server.tool(
+    'query_cyberlinks_by_owner_time',
+    'Returns cyberlinks created by an owner within a time range.',
+    {
+      owner: z.string().describe("Owner's address"),
+      start_time: z.string().describe('Start of time range in nanoseconds'),
+      end_time: z.string().optional().describe('End of time range in nanoseconds'),
+      start_after_gid: z.number().optional().describe('ID to start after for pagination'),
+      limit: z.number().default(50).describe('Maximum number of results to return'),
+    },
+    async (args) =>
+      formatMsgResponse(
+        await cyberlinkQueryService.queryCyberlinksByOwnerTime(
+          args.owner,
+          args.start_time,
+          args.end_time,
+          args.start_after_gid,
+          args.limit
+        )
+      )
+  );
 
-  return { content: responseContent };
+  server.tool(
+    'query_cyberlinks_by_owner_time_any',
+    'Returns cyberlinks created or updated by an owner within a time range.',
+    {
+      owner: z.string().describe("Owner's address"),
+      start_time: z.string().describe('Start of time range in nanoseconds'),
+      end_time: z.string().optional().describe('End of time range in nanoseconds'),
+      start_after_gid: z.number().optional().describe('ID to start after for pagination'),
+      limit: z.number().default(50).describe('Maximum number of results to return'),
+    },
+    async (args) =>
+      formatMsgResponse(
+        await cyberlinkQueryService.queryCyberlinksByOwnerTimeAny(
+          args.owner,
+          args.start_time,
+          args.end_time,
+          args.start_after_gid,
+          args.limit
+        )
+      )
+  );
+
+  server.tool(
+    'get_graph_stats',
+    'Retrieves statistics about cyberlinks in the graph.',
+    {
+      owner: z.string().optional().describe('Address to get stats for'),
+      type_: z.string().optional().describe('Type to get stats for'),
+    },
+    async (args) =>
+      formatMsgResponse(await cyberlinkQueryService.getGraphStats(args.owner, args.type_))
+  );
 }
 
+/**
+ * Register all transaction and other tools
+ */
+function registerTransactionTools(
+  server: McpServer,
+  cyberlinkMessageService: CyberlinkMessageService,
+  embeddingService: EmbeddingService,
+  cyberlinkTxService?: CyberlinkTxService
+) {
+  server.tool(
+    'create_cyberlink',
+    'Creates a new cyberlink with an auto-generated formatted ID. Only type is required, from/to are optional and can be omitted together.',
+    {
+      type: z.string().describe('Type of the cyberlink'),
+      from: z.string().optional().describe('Source of the cyberlink(formatted_id) - optional'),
+      to: z.string().optional().describe('Target of the cyberlink(formatted_id) - optional'),
+      value: z.string().optional().describe('Value for the cyberlink - optional'),
+    },
+    async (args) =>
+      executeOrJustMsg(cyberlinkMessageService.createCyberlinkMsg(args), cyberlinkTxService)
+  );
 
+  server.tool(
+    'create_cyberlink2',
+    'Creates a node and links it to an existing node in a single transaction.',
+    {
+      node_type: z.string().describe('Type of the new node to create'),
+      node_value: z.string().optional().describe('Value/content of the new node'),
+      link_type: z.string().describe('Type of the link between nodes'),
+      link_value: z.string().optional().describe('Value/metadata for the link'),
+      link_from_existing_id: z.string().optional().describe('ID of existing node to link from'),
+      link_to_existing_id: z.string().optional().describe('ID of existing node to link to'),
+    },
+    async (args) =>
+      executeOrJustMsg(cyberlinkMessageService.createCyberlink2Msg(args), cyberlinkTxService)
+  );
+
+  server.tool(
+    'create_named_cyberlink',
+    'Creates a cyberlink with a custom string identifier. Admin-only operation.',
+    {
+      name: z.string().describe('Name of the cyberlink'),
+      cyberlink: z.object({
+        type: z.string().describe('Type of the cyberlink'),
+        from: z.string().optional().describe('Source of the cyberlink(formatted_id)'),
+        to: z.string().optional().describe('Target of the cyberlink(formatted_id)'),
+        value: z.string().optional().describe('Value for the cyberlink'),
+      }),
+    },
+    async (args) =>
+      executeOrJustMsg(
+        cyberlinkMessageService.createNamedCyberlinkMsg(args.name, args.cyberlink),
+        cyberlinkTxService
+      )
+  );
+
+  server.tool(
+    'create_cyberlinks',
+    'Creates multiple cyberlinks in a single atomic transaction, ensuring all succeed or all fail.',
+    {
+      cyberlinks: z.array(
+        z.object({
+          type: z.string().describe('Type of the cyberlink'),
+          from: z.string().optional().describe('Source of the cyberlink(formatted_id)'),
+          to: z.string().optional().describe('Target of the cyberlink(formatted_id)'),
+          value: z.string().optional().describe('Value for the cyberlink'),
+        })
+      ),
+    },
+    async (args) =>
+      executeOrJustMsg(
+        cyberlinkMessageService.createCyberlinksMsg(args.cyberlinks),
+        cyberlinkTxService
+      )
+  );
+
+  server.tool(
+    'update_cyberlink',
+    'Updates an existing cyberlink, allowing only the value field to be modified while preserving the relationship structure.',
+    {
+      id: z.number().describe('ID of the cyberlink to update'),
+      cyberlink: z.object({
+        type: z.string().describe('Type of the cyberlink'),
+        from: z.string().optional().describe('Source of the cyberlink'),
+        to: z.string().optional().describe('Target of the cyberlink'),
+        value: z.string().optional().describe('Value for the cyberlink'),
+      }),
+    },
+    async (args) =>
+      executeOrJustMsg(
+        cyberlinkMessageService.updateCyberlinkMsg(args.id, args.cyberlink),
+        cyberlinkTxService
+      )
+  );
+
+  server.tool(
+    'delete_cyberlink',
+    'Permanently removes a cyberlink from the social graph, requiring owner or admin permissions.',
+    {
+      id: z.number().describe('ID of the cyberlink to delete'),
+    },
+    async (args) =>
+      executeOrJustMsg(cyberlinkMessageService.deleteCyberlinkMsg(args.id), cyberlinkTxService)
+  );
+
+  if (cyberlinkTxService) {
+    server.tool(
+      'query_wallet_balance',
+      'Return the wallet address and all token balances',
+      {},
+      async () => formatMsgResponse(await cyberlinkTxService.queryWalletBalance())
+    );
+
+    server.tool(
+      'send_tokens',
+      'Send tokens from your wallet to another address',
+      {
+        recipient: z.string().describe('Recipient wallet address'),
+        amount: z.string().describe("Amount of tokens to send (e.g. '100000')"),
+        denom: z.string().default('stake').describe("Token denomination (e.g. 'stake')"),
+      },
+      async (args) =>
+        executeOrJustMsg(
+          { send_tokens: { recipient: args.recipient, amount: args.amount, denom: args.denom } },
+          cyberlinkTxService
+        )
+    );
+  }
+
+  server.tool(
+    'update_with_embedding',
+    'Enhances a cyberlink by generating and adding a semantic embedding to its content for similarity-based operations.',
+    {
+      formatted_id: z.string().describe('Formatted ID of the cyberlink to update'),
+    },
+    async (args) => formatMsgResponse(await embeddingService.updateWithEmbedding(args.formatted_id))
+  );
+}
 
 async function main() {
   try {
@@ -82,520 +301,62 @@ async function main() {
     const contractAddress = process.env.CONTRACT_ADDRESS;
     const denom = process.env.DENOM || 'stake';
 
-    // Initialize CyberlinkService
-    const cyberlinkService = new CyberlinkService(nodeUrl!, walletMnemonic!, contractAddress!, denom);
-    await cyberlinkService.initialize();
+    const isTxServiceEnabled = walletMnemonic !== undefined;
 
-    // Initialize MCP Server
-    const server = new Server(
-      { name: 'cyberlink-mcp', version: '0.1.0' },
-      { 
-        capabilities: { 
+    // Initialize MCP Server with high-level abstraction
+    const server = new McpServer(
+      { name: 'cyberlink-mcp', version: '0.2.0' },
+      {
+        capabilities: {
           tools: {},
           logging: {
             notifications: true,
-            messages: true
-          }
-        } 
+            messages: true,
+          },
+        },
       }
     );
 
-    // Tool Definitions
-    server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: [
-        // CRUD operations
-        {
-          name: 'create_cyberlink',
-          description: 'Create a new cyberlink and wait for confirmation. Returns transaction details including numeric_id and formatted_id.',
-          inputSchema: {
-            type: "object",
-            properties: {
-              type: { type: "string", description: "Type of the cyberlink" },
-              from: { type: "string", description: "Source of the cyberlink(formatted_id)" },
-              to: { type: "string", description: "Target of the cyberlink(formatted_id)" },
-              value: { type: "string", description: "Value for the cyberlink" }
-            },
-            required: ["type"]
-          }
-        },
-        {
-          name: 'create_named_cyberlink',
-          description: 'Create a named cyberlink and wait for confirmation. Returns transaction details including numeric_id and formatted_id.',
-          inputSchema: {
-            type: "object",
-            properties: {
-              name: { type: "string", description: "Name of the cyberlink" },
-              cyberlink: {
-                type: "object",
-                properties: {
-                  type: { type: "string", description: "Type of the cyberlink" },
-                  from: { type: "string", description: "Source of the cyberlink(formatted_id)" },
-                  to: { type: "string", description: "Target of the cyberlink(formatted_id)" },
-                  value: { type: "string", description: "Value for the cyberlink" }
-                },
-                required: ["type"]
-              }
-            },
-            required: ["name", "cyberlink"]
-          }
-        },
-        {
-          name: 'create_cyberlinks',
-          description: 'Create multiple cyberlinks in batch and wait for confirmation. Returns transaction details including numeric_id and formatted_id.',
-          inputSchema: {
-            type: "object",
-            properties: {
-              cyberlinks: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    type: { type: "string", description: "Type of the cyberlink" },
-                    from: { type: "string", description: "Source of the cyberlink(formatted_id)" },
-                    to: { type: "string", description: "Target of the cyberlink(formatted_id)" },
-                    value: { type: "string", description: "Value for the cyberlink" }
-                  },
-                  required: ["type"]
-                }
-              }
-            },
-            required: ["cyberlinks"]
-          }
-        },
-        {
-          name: 'update_cyberlink',
-          description: 'Update an existing cyberlink and wait for confirmation. Returns transaction details including numeric_id and formatted_id.',
-          inputSchema: {
-            type: "object",
-            properties: {
-              id: { type: "number", description: "ID of the cyberlink to update" },
-              cyberlink: {
-                type: "object",
-                properties: {
-                  type: { type: "string", description: "Type of the cyberlink" },
-                  from: { type: "string", description: "Source of the cyberlink" },
-                  to: { type: "string", description: "Target of the cyberlink" },
-                  value: { type: "string", description: "Value for the cyberlink" }
-                },
-                required: ["type"]
-              }
-            },
-            required: ["id", "cyberlink"]
-          }
-        },
-        {
-          name: 'delete_cyberlink',
-          description: 'Delete a cyberlink and wait for confirmation. Returns transaction details.',
-          inputSchema: {
-            type: "object",
-            properties: {
-              id: { type: "number", description: "ID of the cyberlink to delete" }
-            },
-            required: ["id"]
-          }
-        },
-        
-        // QUERY OPERATIONS
-        
-        // 1. Query by ID (numeric)
-        {
-          name: 'query_by_id',
-          description: 'Query a cyberlink by its numeric ID',
-          inputSchema: {
-            type: "object",
-            properties: {
-              id: { type: "number", description: "Numeric ID of the cyberlink" }
-            },
-            required: ["id"]
-          }
-        },
-        
-        // 2. Query by formatted ID (string)
-        {
-          name: 'query_by_formatted_id',
-          description: 'Query a cyberlink by its formatted string ID',
-          inputSchema: {
-            type: "object",
-            properties: {
-              formatted_id: { type: "string", description: "Formatted string ID of the cyberlink" }
-            },
-            required: ["formatted_id"]
-          }
-        },
-        
-        // 3. Query all cyberlinks (paginated)
-        {
-          name: 'query_cyberlinks',
-          description: 'Query all cyberlinks with pagination',
-          inputSchema: {
-            type: "object",
-            properties: {
-              start_after: { 
-                type: "number", 
-                description: "Start cursor for pagination" 
-              },
-              limit: { 
-                type: "number", 
-                description: "Maximum number of results to return",
-                default: 50 
-              }
-            }
-          }
-        },
-        
-        // 4. Query by owner
-        {
-          name: 'query_by_owner',
-          description: 'Query cyberlinks by owner address',
-          inputSchema: {
-            type: "object",
-            properties: {
-              owner: { 
-                type: "string", 
-                description: "Owner address to filter by" 
-              },
-              start_after: { 
-                type: "number", 
-                description: "Start cursor for pagination" 
-              },
-              limit: { 
-                type: "number", 
-                description: "Maximum number of results to return",
-                default: 50 
-              }
-            },
-            required: ["owner"]
-          }
-        },
-        
-        // 5. Query by time range (creation time)
-        {
-          name: 'query_by_time_range',
-          description: 'Query cyberlinks by creation time range',
-          inputSchema: {
-            type: "object",
-            properties: {
-              owner: { 
-                type: "string", 
-                description: "Owner address to filter by" 
-              },
-              start_time: { 
-                type: "string", 
-                description: "Start time for time range query (millisecond timestamp)" 
-              },
-              end_time: { 
-                type: "string", 
-                description: "End time for time range query (millisecond timestamp)" 
-              },
-              start_after: { 
-                type: "string", 
-                description: "Start cursor for pagination" 
-              },
-              limit: { 
-                type: "number", 
-                description: "Maximum number of results to return",
-                default: 50 
-              }
-            },
-            required: ["owner", "start_time"]
-          }
-        },
-        
-        // 6. Query by time range (creation or update time)
-        {
-          name: 'query_by_time_range_any',
-          description: 'Query cyberlinks by creation or update time range',
-          inputSchema: {
-            type: "object",
-            properties: {
-              owner: { 
-                type: "string", 
-                description: "Owner address to filter by" 
-              },
-              start_time: { 
-                type: "string", 
-                description: "Start time for time range query (millisecond timestamp)" 
-              },
-              end_time: { 
-                type: "string", 
-                description: "End time for time range query (millisecond timestamp)" 
-              },
-              start_after: { 
-                type: "string", 
-                description: "Start cursor for pagination" 
-              },
-              limit: { 
-                type: "number", 
-                description: "Maximum number of results to return",
-                default: 50 
-              }
-            },
-            required: ["owner", "start_time"]
-          }
-        },
-        
-        // 7. Query named cyberlinks
-        {
-          name: 'query_named_cyberlinks',
-          description: 'Query all named cyberlinks with pagination',
-          inputSchema: {
-            type: "object",
-            properties: {
-              start_after: { 
-                type: "number", 
-                description: "Start cursor for pagination" 
-              },
-              limit: { 
-                type: "number", 
-                description: "Maximum number of results to return",
-                default: 50 
-              }
-            }
-          }
-        },
-        
-        // 8. Query multiple cyberlinks by IDs
-        {
-          name: 'query_by_ids',
-          description: 'Query multiple cyberlinks by their numeric IDs',
-          inputSchema: {
-            type: "object",
-            properties: {
-              ids: { 
-                type: "array",
-                items: { type: "number" },
-                description: "Array of cyberlink IDs to query" 
-              }
-            },
-            required: ["ids"]
-          }
-        },
-        
-        // 9. Query last ID
-        {
-          name: 'query_last_id',
-          description: 'Query the last assigned cyberlink ID',
-          inputSchema: {
-            type: "object",
-            properties: {}
-          }
-        },
-        
-        // 10. Query contract configuration
-        {
-          name: 'query_config',
-          description: 'Query contract configuration and settings',
-          inputSchema: {
-            type: "object",
-            properties: {}
-          }
-        },
-        
-        // 11. Query debug state
-        {
-          name: 'query_debug_state',
-          description: 'Query contract debug state (admin only)',
-          inputSchema: {
-            type: "object",
-            properties: {}
-          }
-        },
+    // Initialize CyberlinkTxService if walletMnemonic is provided
+    // Otherwise, tool prepare messages for external execution
+    const cyberlinkTxService = isTxServiceEnabled
+      ? new CyberlinkTxService(nodeUrl!, walletMnemonic, contractAddress!, denom)
+      : undefined;
 
-        // 12. Query wallet balance
-        {
-          name: 'query_wallet_balance',
-          description: 'Return the wallet address and all token balances',
-          inputSchema: {
-            type: "object",
-            properties: {}
-          }
-        },
+    const cyberlinkMessageService = new CyberlinkMessageService();
+    const cyberlinkQueryService = new CyberlinkQueryService(nodeUrl!, contractAddress!);
 
-        // 13. Send tokens
-        {
-          name: 'send_tokens',
-          description: 'Send tokens from your wallet to another address',
-          inputSchema: {
-            type: "object",
-            properties: {
-              recipient: {
-                type: "string",
-                description: "Recipient wallet address"
-              },
-              amount: {
-                type: "string",
-                description: "Amount of tokens to send (e.g. '100000')"
-              },
-              denom: {
-                type: "string",
-                description: `Token denomination (e.g. '${denom}')`,
-                default: denom
-              }
-            },
-            required: ["recipient", "amount"]
-          }
-        },
-      ]
-    }));
+    const embeddingService = new EmbeddingService((state: ProgressState) =>
+      server.server.sendLoggingMessage({
+        level: 'info',
+        data: `${state.status}: ${state.message}`,
+      })
+    );
 
-    // Tool Handlers
-    server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      const { name, arguments: args } = request.params;
-      
-      try {
-        // Handler for query operations
-        const handleQueryOperation = async (operationName: string, args: any) => {
-          let result;
-          
-          switch (operationName) {
-            // Query by ID (numeric)
-            case 'query_by_id':
-              result = await cyberlinkService.queryById(args.id);
-              break;
-              
-            // Query by formatted ID (string)
-            case 'query_by_formatted_id':
-              result = await cyberlinkService.queryByFormattedId(args.formatted_id);
-              break;
-              
-            // Query all cyberlinks (paginated)
-            case 'query_cyberlinks':
-              server.sendLoggingMessage({
-                level: "info",
-                data: "Querying all cyberlinks",
-              });
-              result = await cyberlinkService.queryCyberlinks(args.start_after, args.limit || 50);
+    // Register all tools
+    registerQueryTools(server, cyberlinkQueryService);
+    registerTransactionTools(server, cyberlinkMessageService, embeddingService, cyberlinkTxService);
 
-              break;
-              
-            // Query by owner
-            case 'query_by_owner':
-              result = await cyberlinkService.queryByOwner(args.owner, args.start_after, args.limit || 50);
-              break;
-              
-            // Query by time range (creation time)
-            case 'query_by_time_range':
-              result = await cyberlinkService.queryByTimeRange(
-                args.owner,
-                millisecondsToNanosecondsWithDefault(args.start_time),
-                millisecondsToNanosecondsWithDefault(args.end_time, Date.now()),
-                args.start_after,
-                args.limit || 50
-              );
-              break;
-              
-            // Query by time range (creation or update time)
-            case 'query_by_time_range_any':
-              result = await cyberlinkService.queryByTimeRangeAny(
-                args.owner,
-                millisecondsToNanosecondsWithDefault(args.start_time),
-                millisecondsToNanosecondsWithDefault(args.end_time, Date.now()),
-                args.start_after,
-                args.limit || 50
-              );
-              break;
-              
-            // Query named cyberlinks
-            case 'query_named_cyberlinks':
-              result = await cyberlinkService.queryNamedCyberlinks(args.start_after, args.limit || 50);
-              break;
-              
-            // Query multiple cyberlinks by IDs
-            case 'query_by_ids':
-              result = await cyberlinkService.queryByIds(args.ids);
-              break;
-              
-            // Query last ID
-            case 'query_last_id':
-              result = await cyberlinkService.queryLastId();
-              break;
-              
-            // Query contract configuration
-            case 'query_config':
-              result = await cyberlinkService.queryConfig();
-              break;
-              
-            // Query debug state
-            case 'query_debug_state':
-              result = await cyberlinkService.queryDebugState();
-              break;
-              
-            case 'query_wallet_balance':
-              result = await cyberlinkService.queryWalletBalance();
-              break;
-              
-            default:
-              throw new McpError(ErrorCode.MethodNotFound, `Unknown query operation: ${operationName}`);
-          }
-          
-          return { 
-            content: [{
-              type: 'text',
-              text: JSON.stringify(result)
-            }]
-          };
-        };
-        
-        // Handler for execution operations
-        const handleExecutionOperation = async (operationName: string, args: any) => {
-          let result;
-          
-          // server.sendLoggingMessage({
-          //   level: "info",
-          //   data: `Executing ${operationName} with args: ${JSON.stringify(args)}`,
-          // });
-          
-          switch (operationName) {
-            case 'create_cyberlink':
-              result = await cyberlinkService.createCyberlink(args);
-              break;
-            case 'create_named_cyberlink':
-              result = await cyberlinkService.createNamedCyberlink(args.name, args.cyberlink);
-              break;
-            case 'create_cyberlinks':
-              result = await cyberlinkService.createCyberlinks(args.cyberlinks);
-              break;
-            case 'update_cyberlink':
-              result = await cyberlinkService.updateCyberlink(args.id, args.cyberlink);
-              break;
-            case 'delete_cyberlink':
-              result = await cyberlinkService.deleteCyberlink(args.id);
-              break;
-
-            case 'send_tokens':
-              result = await cyberlinkService.sendTokens(args.recipient, args.amount, args.denom);
-              break;
-            default:
-              throw new McpError(ErrorCode.MethodNotFound, `Unknown execution operation: ${operationName}`);
-          }
-          
-          return formatTransactionResponse(result);
-        };
-        
-        // Determine the type of operation and use the appropriate handler
-        const isQueryOperation = name.startsWith('query_');
-        
-        if (isQueryOperation) {
-          return await handleQueryOperation(name, args);
-        } else {
-          return await handleExecutionOperation(name, args);
-        }
-      } catch (error) {
-        if (error instanceof McpError) {
-          throw error;
-        }
-        throw new McpError(ErrorCode.InternalError, 'Operation failed', { error: error instanceof Error ? error.message : String(error) });
-      }
-    });
-
-    // Start Server
+    // Start the server
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error('Cyberlink MCP Server running');
-  } catch (err) {
-    console.error('Server failed:', err);
+
+    cyberlinkTxService && (await cyberlinkTxService.initialize());
+    await cyberlinkQueryService.initialize();
+    await embeddingService.initialize();
+
+    console.error(
+      isTxServiceEnabled
+        ? 'Cyberlink MCP Server running'
+        : 'Cyberlink MCP Server running (no tx service)'
+    );
+  } catch (error) {
+    console.error('Failed to start server:', error);
     process.exit(1);
   }
 }
 
-main();
+main().catch((error) => {
+  console.error('Unhandled error:', error);
+  process.exit(1);
+});
