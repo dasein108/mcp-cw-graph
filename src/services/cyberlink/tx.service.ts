@@ -111,6 +111,7 @@ export class CyberlinkTxService extends CyberlinkBaseService {
           throw new Error(result.error || 'Transaction failed');
         }
       } catch (error) {
+        console.error(`Error while polling transaction ${txHash}:`, error);
         // Continue polling if transaction not found
       }
       await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
