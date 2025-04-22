@@ -78,9 +78,11 @@ Replace the following values:
 
 - `PATH_TO_YOUR_PROJECT`: Absolute path to your cw-social-mcp project
 - `NODE_URL`: Your Cosmos node URL
-- `WALLET_MNEMONIC`: Your wallet's mnemonic phrase
+- `WALLET_MNEMONIC`: Your wallet's mnemonic phrase (optional - if not set, transactions will be returned unsigned for external signing)
 - `CONTRACT_ADDRESS`: Your deployed contract address
 - `DENOM`: (Optional) Token denomination, defaults to 'stake'
+
+Note: When `WALLET_MNEMONIC` is set, the server will use its internal signer to sign and broadcast transactions. If not set, the server will return the pure transaction for external signing. This allows for flexible integration with different signing approaches and wallet management strategies.
 
 The configuration uses stdio format for communication between the MCP server and the clients (Cursor/Claude Desktop).
 
