@@ -14,6 +14,16 @@ import { executeOrJustMsg, formatMsgResponse } from './utils/response.utils';
  */
 function registerQueryTools(server: McpServer, cyberlinkQueryService: CyberlinkQueryService) {
   server.tool(
+    'query_transaction',
+    'Query the status and result of a transaction by its hash.',
+    {
+      transaction_hash: z.string().describe('Hash of the transaction to query'),
+    },
+    async (args) =>
+      formatMsgResponse(await cyberlinkQueryService.waitForTransaction(args.transaction_hash))
+  );
+
+  server.tool(
     'query_by_id',
     'Retrieves complete information about a specific cyberlink using its numeric identifier.',
     {
@@ -305,7 +315,7 @@ async function main() {
 
     // Initialize MCP Server with high-level abstraction
     const server = new McpServer(
-      { name: 'cyberlink-mcp', version: '0.2.0' },
+      { name: 'cyberlink-mcp', version: '0.2.1' },
       {
         capabilities: {
           tools: {},

@@ -9,6 +9,10 @@ A Model Context Protocol (MCP) server for interacting with the CW-Social smart c
 - Batch operations
 - Rich query capabilities
 - Transaction status tracking
+  - Real-time transaction monitoring
+  - Automatic status polling
+  - Detailed transaction results including cyberlink IDs
+  - Support for both internal and external signing
 - Input validation
 - Error handling
 - Integration with Cursor IDE and Claude Desktop
@@ -113,6 +117,16 @@ The configuration uses stdio format for communication between the MCP server and
 - query_last_id - Get last assigned cyberlink ID
 - query_config - Query contract configuration
 - query_debug_state - Query debug state (admin only)
+- query_transaction - Query transaction status and results
+  - Required parameters:
+    - `transaction_hash`: Hash of the transaction to query
+  - Returns:
+    - Transaction status (confirmed/failed/pending)
+    - For confirmed transactions:
+      - Cyberlink IDs (numeric and formatted)
+      - Transaction hash
+    - For failed transactions:
+      - Error message and code
 
 ### Wallet Operations
 

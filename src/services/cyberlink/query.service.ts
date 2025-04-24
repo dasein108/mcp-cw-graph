@@ -1,4 +1,5 @@
 import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate';
+import { IndexedTx } from '@cosmjs/stargate';
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { CyberlinkBaseService } from './base.service';
 import {
@@ -42,10 +43,14 @@ export class CyberlinkQueryService extends CyberlinkBaseService {
     }
   }
 
-  private ensureInitialized(): void {
+  protected ensureInitialized(): void {
     if (!this.cosmWasmClient) {
       throw new McpError(ErrorCode.InternalError, 'CyberlinkQueryService not initialized');
     }
+  }
+
+  protected async getTx(transactionHash: string): Promise<IndexedTx | null> {
+    return this.cosmWasmClient!.getTx(transactionHash);
   }
 
   /**
