@@ -19,7 +19,7 @@ function formatCyberlinkStateTimestamps(obj: CyberlinkState): any {
     newObj.created_at = nanosToISOString(newObj.created_at) || newObj.created_at;
 
     // updated_at
-    if (typeof newObj.updated_at === 'string') {
+    if (typeof newObj.updated_at === 'string' || typeof newObj.updated_at === 'number') {
       newObj.updated_at = nanosToISOString(newObj.updated_at) || newObj.updated_at;
     } else {
       newObj.updated_at = undefined;
