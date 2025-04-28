@@ -7,8 +7,8 @@ import { CyberlinkMessageService } from './services/cyberlink/message.service';
 import { CyberlinkQueryService } from './services/cyberlink/query.service';
 import { CyberlinkTxService } from './services/cyberlink/tx.service';
 import { EmbeddingService, type ProgressState } from './services/embedding.service';
+import { parseToNanos } from './utils';
 import { executeOrJustMsg, formatMsgResponse } from './utils/response.utils';
-
 /**
  * Register all query-related tools
  */
@@ -113,8 +113,8 @@ function registerQueryTools(server: McpServer, cyberlinkQueryService: CyberlinkQ
     'Returns cyberlinks created by an owner within a time range.',
     {
       owner: z.string().describe("Owner's address"),
-      start_time: z.string().describe('Start of time range in nanoseconds'),
-      end_time: z.string().optional().describe('End of time range in nanoseconds'),
+      start_time: z.string().describe('Start of time range (ISO 8601 datetime)'),
+      end_time: z.string().optional().describe('End of time range (ISO 8601 datetime)'),
       start_after_gid: z.number().optional().describe('ID to start after for pagination'),
       limit: z.number().default(50).describe('Maximum number of results to return'),
     },
@@ -122,8 +122,8 @@ function registerQueryTools(server: McpServer, cyberlinkQueryService: CyberlinkQ
       formatMsgResponse(
         await cyberlinkQueryService.queryCyberlinksByOwnerTime(
           args.owner,
-          args.start_time,
-          args.end_time,
+          parseToNanos(args.start_time),
+          args.end_time ? parseToNanos(args.end_time) : undefined,
           args.start_after_gid,
           args.limit
         )
@@ -135,8 +135,8 @@ function registerQueryTools(server: McpServer, cyberlinkQueryService: CyberlinkQ
     'Returns cyberlinks created or updated by an owner within a time range.',
     {
       owner: z.string().describe("Owner's address"),
-      start_time: z.string().describe('Start of time range in nanoseconds'),
-      end_time: z.string().optional().describe('End of time range in nanoseconds'),
+      start_time: z.string().describe('Start of time range (ISO 8601 datetime)'),
+      end_time: z.string().optional().describe('End of time range (ISO 8601 datetime)'),
       start_after_gid: z.number().optional().describe('ID to start after for pagination'),
       limit: z.number().default(50).describe('Maximum number of results to return'),
     },
@@ -144,8 +144,8 @@ function registerQueryTools(server: McpServer, cyberlinkQueryService: CyberlinkQ
       formatMsgResponse(
         await cyberlinkQueryService.queryCyberlinksByOwnerTimeAny(
           args.owner,
-          args.start_time,
-          args.end_time,
+          parseToNanos(args.start_time),
+          args.end_time ? parseToNanos(args.end_time) : undefined,
           args.start_after_gid,
           args.limit
         )
@@ -315,7 +315,7 @@ async function main() {
 
     // Initialize MCP Server with high-level abstraction
     const server = new McpServer(
-      { name: 'cyberlink-mcp', version: '0.2.1' },
+      { name: 'cyberlink-mcp', version: '0.2.2' },
       {
         capabilities: {
           tools: {},
