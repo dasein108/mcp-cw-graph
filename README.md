@@ -248,10 +248,12 @@ Copy rules into `./cursor/rules` directory
 ### Time Range Queries
 
 - `owner` - Owner address to filter by
-- `start_time` - Start time in nanoseconds (Uint64, can be passed as string or number)
-- `end_time` - Optional end time in nanoseconds (Uint64, can be passed as string or number)
+- `start_time` - Start time (**ISO 8601 datetime string**, timezone-aware or naive [assumed UTC])
+- `end_time` - Optional end time (**ISO 8601 datetime string**, timezone-aware or naive [assumed UTC])
 - `start_after` - Optional pagination cursor (Uint64, can be passed as string or number)
 - `limit` - Optional result limit (default: 50)
+
+> **Note:** `start_time` and `end_time` now accept ISO 8601 datetime strings (e.g., `2024-06-01T12:00:00Z`, `2024-06-01T12:00:00+02:00`, or `2024-06-01T12:00:00`). If no timezone is provided, UTC is assumed. These values are automatically converted to nanoseconds since the Unix epoch internally.
 
 ### Pagination
 

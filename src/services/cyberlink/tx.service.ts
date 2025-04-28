@@ -6,9 +6,6 @@ import { CyberlinkBaseService } from './base.service';
 import { TxResponse } from './types';
 import { sanitizeQueryResult } from './utils';
 
-// Fields to extract from cyberlink event
-const FIELD_NAMES = ['numeric_id', 'numeric_ids', 'formatted_id', 'formatted_ids'];
-
 /**
  * Service class for executing transactions on the CW-Social smart contract
  */
@@ -47,7 +44,9 @@ export class CyberlinkTxService extends CyberlinkBaseService {
     } catch (error) {
       throw new McpError(
         ErrorCode.InternalError,
-        `Failed to initialize transaction service: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Failed to initialize transaction service: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
       );
     }
   }

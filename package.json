@@ -12,10 +12,12 @@
     "@cosmjs/cosmwasm-stargate": "^0.33.1",
     "@huggingface/transformers": "^3.5.0",
     "@modelcontextprotocol/sdk": "^1.10.1",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "luxon": "^3.6.1"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
+    "@types/luxon": "^3.6.2",
     "@types/node": "^22.13.14",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.8.2"

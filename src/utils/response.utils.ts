@@ -1,4 +1,5 @@
-import { TxResponse } from '../services/cyberlink/types';
+import { CyberlinksResponse, CyberlinkState, TxResponse } from '../services/cyberlink/types';
+import { nanosToISOString } from '../utils';
 
 export interface McpResponse {
   [key: string]: unknown;
@@ -9,6 +10,23 @@ export interface McpResponse {
   }[];
   _meta?: { [key: string]: unknown };
   isError?: boolean;
+}
+
+function formatCyberlinkStateTimestamps(obj: CyberlinkState): any {
+  if (obj && typeof obj === 'object') {
+    const newObj = { ...obj };
+    // created_at
+    newObj.created_at = nanosToISOString(newObj.created_at) || newObj.created_at;
+
+    // updated_at
+    if (typeof newObj.updated_at === 'string' || typeof newObj.updated_at === 'number') {
+      newObj.updated_at = nanosToISOString(newObj.updated_at) || newObj.updated_at;
+    } else {
+      newObj.updated_at = undefined;
+    }
+    return newObj;
+  }
+  return obj;
 }
 
 /**
@@ -49,7 +67,26 @@ export function formatTxCyberlinkResponse(result: TxResponse): McpResponse {
  * @param result Any result to be formatted
  * @returns Formatted response object
  */
-export function formatMsgResponse(result: any): McpResponse {
+export function formatMsgResponse(result: object | CyberlinksResponse): McpResponse {
+  if (Array.isArray(result)) {
+    // flatten CyberlinkResponse and format timestamps
+    const content = result.map((item) => {
+      if (Array.isArray(item) && item.length === 2) {
+        return { id: item[0], ...formatCyberlinkStateTimestamps(item[1]) };
+      }
+      return item;
+    });
+
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: JSON.stringify(content),
+        },
+      ],
+    };
+  }
+
   return {
     content: [
       {
