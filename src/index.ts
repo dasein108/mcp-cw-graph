@@ -43,16 +43,21 @@ function registerQueryTools(server: McpServer, cyberlinkQueryService: CyberlinkQ
 
   server.tool(
     'query_cyberlinks',
-    'Queries multiple cyberlinks with pagination support and optional owner filtering, returning sorted results.',
+    'Queries multiple cyberlinks by owner with pagination, returning sorted results.',
     {
       start_after: z.number().optional().describe('Start cursor for pagination'),
       limit: z.number().default(50).describe('Maximum number of results to return'),
-      owner: z.string().optional().describe('Owner address to filter by'),
+      owner: z.string().describe('Owner address to filter by'),
     },
     async (args) => {
-      const result = args.owner
-        ? await cyberlinkQueryService.queryByOwner(args.owner, args.start_after, args.limit)
-        : await cyberlinkQueryService.queryCyberlinks(args.start_after, args.limit);
+      const result = await cyberlinkQueryService.queryByOwner(
+        args.owner,
+        args.start_after,
+        args.limit
+      );
+      // const result = args.owner
+      //   ? await cyberlinkQueryService.queryByOwner(args.owner, args.start_after, args.limit)
+      //   : await cyberlinkQueryService.queryCyberlinks(args.start_after, args.limit);
       return formatMsgResponse(result);
     }
   );
@@ -437,7 +442,7 @@ async function main() {
 
     // Initialize MCP Server with high-level abstraction
     const server = new McpServer(
-      { name: 'cyberlink-mcp', version: '0.2.2' },
+      { name: 'cyberlink-mcp', version: '0.2.3' },
       {
         capabilities: {
           tools: {},
