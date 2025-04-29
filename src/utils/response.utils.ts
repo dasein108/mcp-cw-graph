@@ -67,7 +67,7 @@ export function formatTxCyberlinkResponse(result: TxResponse): McpResponse {
  * @param result Any result to be formatted
  * @returns Formatted response object
  */
-export function formatMsgResponse(result: object | CyberlinksResponse): McpResponse {
+export function formatMsgResponse(result: string | object | CyberlinksResponse): McpResponse {
   if (Array.isArray(result)) {
     // flatten CyberlinkResponse and format timestamps
     const content = result.map((item) => {
@@ -82,6 +82,17 @@ export function formatMsgResponse(result: object | CyberlinksResponse): McpRespo
         {
           type: 'text' as const,
           text: JSON.stringify(content),
+        },
+      ],
+    };
+  }
+
+  if (typeof result === 'object' && result !== null) {
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: JSON.stringify(formatCyberlinkStateTimestamps(result as CyberlinkState)),
         },
       ],
     };

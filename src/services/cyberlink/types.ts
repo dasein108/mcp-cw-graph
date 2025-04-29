@@ -17,8 +17,8 @@ export type CyberlinkValue = {
  */
 export interface Cyberlink {
   type: string; // Required - Type of the relationship
-  from?: string; // Optional - Source formatted_id
-  to?: string; // Optional - Target formatted_id
+  from?: string; // Optional - Source fid
+  to?: string; // Optional - Target fid
   value?: string; // Optional - JSON stringified CyberlinkValue
 }
 
@@ -26,19 +26,19 @@ export interface Cyberlink {
  * Named cyberlink mapping interface
  */
 export interface NamedCyberlink {
-  id: number; // Required - Numeric ID
-  name: string; // Required - Name identifier (formatted_id or type)
+  gid: number; // Required - Numeric ID
+  name: string; // Required - Name identifier (fid or type)
 }
 
 /**
  * Extended cyberlink state with metadata
  */
 export interface CyberlinkState extends Cyberlink {
-  id?: number; // Numeric ID
+  gid?: number; // Numeric ID
   owner: string; // Owner's wallet address
   created_at: Timestamp; // Creation timestamp
   updated_at?: Timestamp | null; // Last update timestamp
-  formatted_id?: string | null; // Formatted string identifier
+  fid?: string | null; // Formatted string identifier
 }
 
 // Query Parameters
@@ -76,10 +76,10 @@ export interface TxResponse {
 
 export interface TxCyberlinkResponseResult {
   transaction_hash: string; // Transaction hash
-  numeric_id?: string; // Created/updated cyberlink ID
-  formatted_id?: string; // Created/updated formatted ID
-  numeric_ids?: string[]; // Batch operation IDs
-  formatted_ids?: string[]; // Batch operation formatted IDs
+  gid?: string; // Created/updated cyberlink ID
+  fid?: string; // Created/updated formatted ID
+  gids?: string[]; // Batch operation IDs
+  fids?: string[]; // Batch operation formatted IDs
 }
 
 export interface TxStatusResponse {

@@ -24,22 +24,21 @@ function registerQueryTools(server: McpServer, cyberlinkQueryService: CyberlinkQ
   );
 
   server.tool(
-    'query_by_id',
-    'Retrieves complete information about a specific cyberlink using its numeric identifier.',
+    'query_by_gid',
+    'Retrieves complete information about a specific cyberlink using its global identifier.',
     {
-      id: z.number().describe('Numeric ID of the cyberlink'),
+      gid: z.string().describe('GID of the cyberlink'),
     },
-    async (args) => formatMsgResponse(await cyberlinkQueryService.queryById(args.id))
+    async (args) => formatMsgResponse(await cyberlinkQueryService.queryById(args.gid))
   );
 
   server.tool(
-    'query_by_formatted_id',
-    'Retrieves complete information about a specific cyberlink using its human-readable formatted identifier.',
+    'query_by_fid',
+    'Retrieves complete information about a specific cyberlink using its human-readable fid.',
     {
-      formatted_id: z.string().describe('Formatted string ID of the cyberlink'),
+      fid: z.string().describe('FID of the cyberlink'),
     },
-    async (args) =>
-      formatMsgResponse(await cyberlinkQueryService.queryByFormattedId(args.formatted_id))
+    async (args) => formatMsgResponse(await cyberlinkQueryService.queryByFormattedId(args.fid))
   );
 
   server.tool(
@@ -62,14 +61,14 @@ function registerQueryTools(server: McpServer, cyberlinkQueryService: CyberlinkQ
     'query_cyberlinks_by_type',
     'Returns cyberlinks of a specific type with pagination support.',
     {
-      type_: z.string().describe('Type to filter by'),
-      start_after_gid: z.number().optional().describe('ID to start after for pagination'),
+      type: z.string().describe('Type to filter by'),
+      start_after_gid: z.number().optional().describe('GID to start after for pagination'),
       limit: z.number().default(50).describe('Maximum number of results to return'),
     },
     async (args) =>
       formatMsgResponse(
         await cyberlinkQueryService.queryCyberlinksByType(
-          args.type_,
+          args.type,
           args.start_after_gid,
           args.limit
         )
@@ -80,8 +79,8 @@ function registerQueryTools(server: McpServer, cyberlinkQueryService: CyberlinkQ
     'query_cyberlinks_by_from',
     'Returns cyberlinks originating from a specific node.',
     {
-      from: z.string().describe("Source node's formatted ID"),
-      start_after_gid: z.number().optional().describe('ID to start after for pagination'),
+      from: z.string().describe("Source node's fid"),
+      start_after_gid: z.number().optional().describe('GID to start after for pagination'),
       limit: z.number().default(50).describe('Maximum number of results to return'),
     },
     async (args) =>
@@ -98,8 +97,8 @@ function registerQueryTools(server: McpServer, cyberlinkQueryService: CyberlinkQ
     'query_cyberlinks_by_to',
     'Returns cyberlinks pointing to a specific node.',
     {
-      to: z.string().describe("Target node's formatted ID"),
-      start_after_gid: z.number().optional().describe('ID to start after for pagination'),
+      to: z.string().describe("Target node's fid"),
+      start_after_gid: z.number().optional().describe('GID to start after for pagination'),
       limit: z.number().default(50).describe('Maximum number of results to return'),
     },
     async (args) =>
@@ -115,7 +114,7 @@ function registerQueryTools(server: McpServer, cyberlinkQueryService: CyberlinkQ
       owner: z.string().describe("Owner's address"),
       start_time: z.string().describe('Start of time range (ISO 8601 datetime)'),
       end_time: z.string().optional().describe('End of time range (ISO 8601 datetime)'),
-      start_after_gid: z.number().optional().describe('ID to start after for pagination'),
+      start_after_gid: z.number().optional().describe('GID to start after for pagination'),
       limit: z.number().default(50).describe('Maximum number of results to return'),
     },
     async (args) =>
@@ -137,7 +136,7 @@ function registerQueryTools(server: McpServer, cyberlinkQueryService: CyberlinkQ
       owner: z.string().describe("Owner's address"),
       start_time: z.string().describe('Start of time range (ISO 8601 datetime)'),
       end_time: z.string().optional().describe('End of time range (ISO 8601 datetime)'),
-      start_after_gid: z.number().optional().describe('ID to start after for pagination'),
+      start_after_gid: z.number().optional().describe('GID to start after for pagination'),
       limit: z.number().default(50).describe('Maximum number of results to return'),
     },
     async (args) =>
@@ -157,10 +156,133 @@ function registerQueryTools(server: McpServer, cyberlinkQueryService: CyberlinkQ
     'Retrieves statistics about cyberlinks in the graph.',
     {
       owner: z.string().optional().describe('Address to get stats for'),
-      type_: z.string().optional().describe('Type to get stats for'),
+      type: z.string().optional().describe('Type to get stats for'),
     },
     async (args) =>
-      formatMsgResponse(await cyberlinkQueryService.getGraphStats(args.owner, args.type_))
+      formatMsgResponse(await cyberlinkQueryService.getGraphStats(args.owner, args.type))
+  );
+
+  // --- MISSING QUERY TOOLS ---
+  server.tool(
+    'query_named_cyberlinks',
+    'Query all named cyberlinks with pagination.',
+    {
+      start_after: z.string().optional().describe('Start after this name for pagination'),
+      limit: z.number().default(50).describe('Maximum number of results to return'),
+    },
+    async (args) =>
+      formatMsgResponse(
+        await cyberlinkQueryService.queryNamedCyberlinks(args.start_after, args.limit)
+      )
+  );
+
+  server.tool(
+    'query_by_gids',
+    'Query multiple cyberlinks by their numeric IDs.',
+    {
+      gids: z.array(z.string()).describe('Array of global IDs'),
+    },
+    async (args) => formatMsgResponse(await cyberlinkQueryService.queryByIds(args.gids))
+  );
+
+  server.tool(
+    'query_by_owner',
+    'Query cyberlinks by owner address with pagination.',
+    {
+      owner: z.string().describe("Owner's address"),
+      start_after: z.number().optional().describe('Start cursor for pagination'),
+      limit: z.number().default(50).describe('Maximum number of results to return'),
+    },
+    async (args) =>
+      formatMsgResponse(
+        await cyberlinkQueryService.queryByOwner(args.owner, args.start_after, args.limit)
+      )
+  );
+
+  server.tool(
+    'query_by_time_range',
+    'Query cyberlinks by creation time range.',
+    {
+      owner: z.string().describe("Owner's address"),
+      start_time: z.string().describe('Start of time range (ISO 8601 datetime)'),
+      end_time: z.string().optional().describe('End of time range (ISO 8601 datetime)'),
+      start_after: z.number().optional().describe('Start cursor for pagination'),
+      limit: z.number().default(50).describe('Maximum number of results to return'),
+    },
+    async (args) =>
+      formatMsgResponse(
+        await cyberlinkQueryService.queryByTimeRange(
+          args.owner,
+          parseToNanos(args.start_time),
+          args.end_time ? parseToNanos(args.end_time) : undefined,
+          args.start_after,
+          args.limit
+        )
+      )
+  );
+
+  server.tool(
+    'query_by_time_range_any',
+    'Query cyberlinks by creation or update time range.',
+    {
+      owner: z.string().describe("Owner's address"),
+      start_time: z.string().describe('Start of time range (ISO 8601 datetime)'),
+      end_time: z.string().optional().describe('End of time range (ISO 8601 datetime)'),
+      start_after: z.number().optional().describe('Start cursor for pagination'),
+      limit: z.number().default(50).describe('Maximum number of results to return'),
+    },
+    async (args) =>
+      formatMsgResponse(
+        await cyberlinkQueryService.queryByTimeRangeAny(
+          args.owner,
+          parseToNanos(args.start_time),
+          args.end_time ? parseToNanos(args.end_time) : undefined,
+          args.start_after,
+          args.limit
+        )
+      )
+  );
+
+  server.tool(
+    'query_cyberlinks_by_owner_and_type',
+    'Returns cyberlinks of a specific type owned by an address.',
+    {
+      owner: z.string().describe("Owner's address"),
+      type: z.string().describe('Type to filter by'),
+      start_after_gid: z.number().optional().describe('GID to start after for pagination'),
+      limit: z.number().default(50).describe('Maximum number of results to return'),
+    },
+    async (args) =>
+      formatMsgResponse(
+        await cyberlinkQueryService.queryCyberlinksByOwnerAndType(
+          args.owner,
+          args.type,
+          args.start_after_gid,
+          args.limit
+        )
+      )
+  );
+
+  server.tool('query_last_id', 'Get the last assigned cyberlink GID.', {}, async () =>
+    formatMsgResponse(await cyberlinkQueryService.queryLastId())
+  );
+
+  server.tool('query_config', 'Query contract configuration.', {}, async () =>
+    formatMsgResponse(await cyberlinkQueryService.queryConfig())
+  );
+
+  server.tool('query_debug_state', 'Query contract debug state (admin only).', {}, async () =>
+    formatMsgResponse(await cyberlinkQueryService.queryDebugState())
+  );
+
+  server.tool(
+    'get_tx_status',
+    'Check transaction status and get cyberlink IDs.',
+    {
+      transaction_hash: z.string().describe('Transaction hash to check'),
+    },
+    async (args) =>
+      formatMsgResponse(await cyberlinkQueryService.getTxStatus(args.transaction_hash))
   );
 }
 
@@ -175,11 +297,11 @@ function registerTransactionTools(
 ) {
   server.tool(
     'create_cyberlink',
-    'Creates a new cyberlink with an auto-generated formatted ID. Only type is required, from/to are optional and can be omitted together.',
+    'Creates a new cyberlink with an auto-generated fid. Only type is required, from/to are optional and can be omitted together.',
     {
       type: z.string().describe('Type of the cyberlink'),
-      from: z.string().optional().describe('Source of the cyberlink(formatted_id) - optional'),
-      to: z.string().optional().describe('Target of the cyberlink(formatted_id) - optional'),
+      from: z.string().optional().describe('Source of the cyberlink (fid) - optional'),
+      to: z.string().optional().describe('Target of the cyberlink (fid) - optional'),
       value: z.string().optional().describe('Value for the cyberlink - optional'),
     },
     async (args) =>
@@ -194,8 +316,8 @@ function registerTransactionTools(
       node_value: z.string().optional().describe('Value/content of the new node'),
       link_type: z.string().describe('Type of the link between nodes'),
       link_value: z.string().optional().describe('Value/metadata for the link'),
-      link_from_existing_id: z.string().optional().describe('ID of existing node to link from'),
-      link_to_existing_id: z.string().optional().describe('ID of existing node to link to'),
+      link_to_existing_id: z.string().optional().describe('GID of existing node to link to'),
+      link_from_existing_id: z.string().optional().describe('GID of existing node to link from'),
     },
     async (args) =>
       executeOrJustMsg(cyberlinkMessageService.createCyberlink2Msg(args), cyberlinkTxService)
@@ -208,8 +330,8 @@ function registerTransactionTools(
       name: z.string().describe('Name of the cyberlink'),
       cyberlink: z.object({
         type: z.string().describe('Type of the cyberlink'),
-        from: z.string().optional().describe('Source of the cyberlink(formatted_id)'),
-        to: z.string().optional().describe('Target of the cyberlink(formatted_id)'),
+        from: z.string().optional().describe('Source of the cyberlink (fid)'),
+        to: z.string().optional().describe('Target of the cyberlink (fid)'),
         value: z.string().optional().describe('Value for the cyberlink'),
       }),
     },
@@ -227,8 +349,8 @@ function registerTransactionTools(
       cyberlinks: z.array(
         z.object({
           type: z.string().describe('Type of the cyberlink'),
-          from: z.string().optional().describe('Source of the cyberlink(formatted_id)'),
-          to: z.string().optional().describe('Target of the cyberlink(formatted_id)'),
+          from: z.string().optional().describe('Source of the cyberlink (fid)'),
+          to: z.string().optional().describe('Target of the cyberlink (fid)'),
           value: z.string().optional().describe('Value for the cyberlink'),
         })
       ),
@@ -244,7 +366,7 @@ function registerTransactionTools(
     'update_cyberlink',
     'Updates an existing cyberlink, allowing only the value field to be modified while preserving the relationship structure.',
     {
-      id: z.number().describe('ID of the cyberlink to update'),
+      gid: z.number().describe('GID of the cyberlink to update'),
       cyberlink: z.object({
         type: z.string().describe('Type of the cyberlink'),
         from: z.string().optional().describe('Source of the cyberlink'),
@@ -254,7 +376,7 @@ function registerTransactionTools(
     },
     async (args) =>
       executeOrJustMsg(
-        cyberlinkMessageService.updateCyberlinkMsg(args.id, args.cyberlink),
+        cyberlinkMessageService.updateCyberlinkMsg(args.gid, args.cyberlink),
         cyberlinkTxService
       )
   );
@@ -263,10 +385,10 @@ function registerTransactionTools(
     'delete_cyberlink',
     'Permanently removes a cyberlink from the social graph, requiring owner or admin permissions.',
     {
-      id: z.number().describe('ID of the cyberlink to delete'),
+      gid: z.number().describe('GID of the cyberlink to delete'),
     },
     async (args) =>
-      executeOrJustMsg(cyberlinkMessageService.deleteCyberlinkMsg(args.id), cyberlinkTxService)
+      executeOrJustMsg(cyberlinkMessageService.deleteCyberlinkMsg(args.gid), cyberlinkTxService)
   );
 
   if (cyberlinkTxService) {
@@ -297,7 +419,7 @@ function registerTransactionTools(
     'update_with_embedding',
     'Enhances a cyberlink by generating and adding a semantic embedding to its content for similarity-based operations.',
     {
-      formatted_id: z.string().describe('Formatted ID of the cyberlink to update'),
+      formatted_id: z.string().describe('Fid of the cyberlink to update'),
     },
     async (args) => formatMsgResponse(await embeddingService.updateWithEmbedding(args.formatted_id))
   );

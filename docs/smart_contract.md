@@ -7,7 +7,7 @@ The CW-Social smart contract is a Cosmos SDK-based contract that implements a gr
 ## Contract Address
 
 ```typescript
-const CONTRACT_ADDRESS = 'wasm14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9s0phg4d';
+const CONTRACT_ADDRESS = 'wasm1pvrwmjuusn9wh34j7y520g8gumuy9xtl3gvprlljfdpwju3x7ucsfg5rpz';
 ```
 
 ## Types
@@ -60,8 +60,8 @@ interface StateResponse {
 
 interface CountsResponse {
   owner_count?: Uint64; // Total cyberlinks by owner
-  type_count?: Uint64; // Total cyberlinks of type
-  owner_type_count?: Uint64; // Total cyberlinks by owner of type
+  typecount?: Uint64; // Total cyberlinks of type
+  owner_typecount?: Uint64; // Total cyberlinks by owner of type
 }
 ```
 
@@ -104,14 +104,14 @@ Creates multiple cyberlinks in a single atomic transaction.
 
 Updates the value of an existing cyberlink. Only the owner or admin can update.
 
-- `id`: Required. Numeric ID of the cyberlink to update
-- `cyberlink`: Required. Updated cyberlink object (only value can be changed)
+- `fid`: Required. Formatted ID of the cyberlink
+- `value`: Optional. New value for the cyberlink
 
 #### DeleteCyberlink
 
 Permanently removes a cyberlink. Only the owner or admin can delete.
 
-- `id`: Required. Numeric ID of the cyberlink to delete
+- `fid`: Required. Formatted ID of the cyberlink to delete
 
 #### UpdateAdmins
 
@@ -132,7 +132,7 @@ Updates the list of addresses allowed to execute operations. Admin-only operatio
 Retrieves statistics about cyberlinks in the graph.
 
 - `owner`: Optional. Address to get stats for
-- `type_`: Optional. Type to get stats for
+- `type`: Optional. Type to get stats for
 
 #### Config
 
@@ -191,7 +191,7 @@ Returns specific cyberlinks by their formatted IDs.
 
 Returns cyberlinks of a specific type.
 
-- `type_`: Required. Type to filter by
+- `type`: Required. Type to filter by
 - `start_after_gid`: Optional. ID to start after for pagination
 - `limit`: Optional. Maximum number of results to return
 
@@ -224,7 +224,7 @@ Returns all cyberlinks owned by an address.
 Returns cyberlinks of a specific type owned by an address.
 
 - `owner`: Required. Owner's address
-- `type_`: Required. Type to filter by
+- `type`: Required. Type to filter by
 - `start_after_gid`: Optional. ID to start after for pagination
 - `limit`: Optional. Maximum number of results to return
 
@@ -297,8 +297,14 @@ interface InstantiateMsg {
 
 // Example
 const instantiateMsg: InstantiateMsg = {
-  admins: ['wasm19j47gw2254lercpznvg4dlf8y2pmqh37ey009s'],
-  executers: ['wasm19j47gw2254lercpznvg4dlf8y2pmqh37ey009s'],
+  admins: [
+    'wasm19j47gw2254lercpznvg4dlf8y2pmqh37ey009s',
+    'wasm1ly7e3cdnlncpvy644cmgyrmd3s24gzjxwc2zk2',
+  ],
+  executers: [
+    'wasm19j47gw2254lercpznvg4dlf8y2pmqh37ey009s',
+    'wasm1ly7e3cdnlncpvy644cmgyrmd3s24gzjxwc2zk2',
+  ],
   semantic_cores: ['Social', 'Chat', 'Lens'],
 };
 ```
@@ -418,21 +424,16 @@ const createCyberlinksMsg: CreateCyberlinksMsg = {
 ```typescript
 interface UpdateCyberlinkMsg {
   update_cyberlink: {
-    id: number;
-    cyberlink: Cyberlink;
+    fid: string; // Formatted ID of the cyberlink
+    value?: string | null; // Optional new value
   };
 }
 
-// Example of updating only the value (other fields must match original)
+// Example
 const updateCyberlinkMsg: UpdateCyberlinkMsg = {
   update_cyberlink: {
-    id: 1,
-    cyberlink: {
-      type: 'Follow', // Must match original
-      from: 'user1', // Must match original
-      to: 'user2', // Must match original
-      value: 'best_friend', // Only this can be changed
-    },
+    fid: 'Post:1',
+    value: 'Updated content',
   },
 };
 ```
@@ -442,14 +443,14 @@ const updateCyberlinkMsg: UpdateCyberlinkMsg = {
 ```typescript
 interface DeleteCyberlinkMsg {
   delete_cyberlink: {
-    id: number;
+    fid: string; // Formatted ID of the cyberlink to delete
   };
 }
 
 // Example
 const deleteCyberlinkMsg: DeleteCyberlinkMsg = {
   delete_cyberlink: {
-    id: 1,
+    fid: 'Post:1',
   },
 };
 ```
@@ -497,477 +498,233 @@ Each query example below includes:
 - Expected response type
 - Example response
 
-#### LastId
+#### LastGID
 
 ```typescript
 // Query
-interface LastIdQuery {
-  last_id: Record<string, never>;
+interface LastGIDQuery {
+  last_g_i_d: Record<string, never>;
 }
 
 // Example request
-const lastIdQuery: LastIdQuery = {
-  last_id: {},
+const lastGIDQuery: LastGIDQuery = {
+  last_g_i_d: {},
 };
 
 // Response type
-type LastIdResponse = Uint64;
+type LastGIDResponse = Uint64;
 
 // Example response
 ('42'); // string representation of Uint64
 ```
 
-#### Cyberlink
+#### CyberlinkByGID
 
 ```typescript
 // Query
-interface CyberlinkQuery {
-  cyberlink: {
-    id: number;
+interface CyberlinkByGIDQuery {
+  cyberlink_by_g_i_d: {
+    gid: Uint64;
   };
 }
 
 // Example request
-const cyberlinkQuery: CyberlinkQuery = {
-  cyberlink: {
-    id: 1
-  }
+const cyberlinkByGIDQuery: CyberlinkByGIDQuery = {
+  cyberlink_by_g_i_d: {
+    gid: '1',
+  },
 };
 
 // Response type
-type CyberlinkResponse = CyberlinkState;
-
-// Example response
-{
-  type: "Post",
-  from: "user1",
-  to: "Any",
-  value: "Hello World!",
-  owner: "wasm1...",
-  created_at: "1683000000000000000",
-  updated_at: null,
-  formatted_id: "Post:1"
-}
+type CyberlinkByGIDResponse = CyberlinkState;
 ```
 
-#### Config
+#### CyberlinksByGIDs
 
 ```typescript
 // Query
-interface ConfigQuery {
-  config: Record<string, never>;
-}
-
-// Example request
-const configQuery: ConfigQuery = {
-  config: {}
-};
-
-// Response type
-interface ConfigResponse {
-  admins: string[];
-  executors: string[];
-}
-
-// Example response
-{
-  admins: ["wasm1..."],
-  executors: ["wasm1...", "wasm2..."]
-}
-```
-
-#### DebugState
-
-```typescript
-// Query
-interface DebugStateQuery {
-  debug_state: Record<string, never>;
-}
-
-// Example request
-const debugStateQuery: DebugStateQuery = {
-  debug_state: {}
-};
-
-// Response type
-interface StateResponse {
-  cyberlinks: [number, CyberlinkState][];
-  named_cyberlinks: [string, number][];
-}
-
-// Example response
-{
-  cyberlinks: [
-    [1, {
-      type: "Post",
-      from: "user1",
-      to: "Any",
-      value: "Hello World!",
-      owner: "wasm1...",
-      created_at: "1683000000000000000",
-      updated_at: null,
-      formatted_id: "Post:1"
-    }]
-  ],
-  named_cyberlinks: [
-    ["Post", 1],
-    ["Comment", 2]
-  ]
-}
-```
-
-#### Cyberlinks (Paginated)
-
-```typescript
-// Query
-interface CyberlinksQuery {
-  cyberlinks: {
-    start_after?: number; // Optional: start after this ID
-    limit?: number; // Optional: max items to return (default: 50, max: 100)
+interface CyberlinksByGIDsQuery {
+  cyberlinks_by_g_i_ds: {
+    start_after_gid?: number;
+    limit?: number;
   };
 }
 
 // Example request
-const cyberlinksQuery: CyberlinksQuery = {
-  cyberlinks: {
-    start_after: 10,
+const cyberlinksQuery: CyberlinksByGIDsQuery = {
+  cyberlinks_by_g_i_ds: {
+    start_after_gid: 10,
     limit: 20,
   },
 };
 
 // Response type
-type CyberlinksResponse = [number, CyberlinkState][];
-
-// Example response
-[
-  [
-    11,
-    {
-      type: 'Post',
-      from: 'user1',
-      to: 'Any',
-      value: 'Hello World!',
-      owner: 'wasm1...',
-      created_at: '1683000000000000000',
-      updated_at: null,
-      formatted_id: 'Post:11',
-    },
-  ],
-  // ... more cyberlinks
-];
+type CyberlinksByGIDsResponse = [number, CyberlinkState][];
 ```
 
-#### NamedCyberlinks (Paginated)
+#### CyberlinksSetByGIDs
 
 ```typescript
 // Query
-interface NamedCyberlinksQuery {
-  named_cyberlinks: {
-    start_after?: string; // Optional: start after this name
-    limit?: number; // Optional: max items to return (default: 50, max: 100)
+interface CyberlinksSetByGIDsQuery {
+  cyberlinks_set_by_g_i_ds: {
+    gids: number[];
   };
 }
 
 // Example request
-const namedCyberlinksQuery: NamedCyberlinksQuery = {
-  named_cyberlinks: {
-    start_after: 'Post',
+const cyberlinksSetQuery: CyberlinksSetByGIDsQuery = {
+  cyberlinks_set_by_g_i_ds: {
+    gids: [1, 2, 3],
+  },
+};
+
+// Response type
+type CyberlinksSetByGIDsResponse = [number, CyberlinkState][];
+```
+
+#### CyberlinkByFID
+
+```typescript
+// Query
+interface CyberlinkByFIDQuery {
+  cyberlink_by_f_i_d: {
+    fid: string;
+  };
+}
+
+// Example request
+const cyberlinkByFIDQuery: CyberlinkByFIDQuery = {
+  cyberlink_by_f_i_d: {
+    fid: 'Post:1',
+  },
+};
+
+// Response type
+type CyberlinkByFIDResponse = CyberlinkState;
+```
+
+#### CyberlinksByFIDs
+
+```typescript
+// Query
+interface CyberlinksByFIDsQuery {
+  cyberlinks_by_f_i_ds: {
+    start_after_fid?: string;
+    limit?: number;
+  };
+}
+
+// Example request
+const cyberlinksByFIDsQuery: CyberlinksByFIDsQuery = {
+  cyberlinks_by_f_i_ds: {
+    start_after_fid: 'Post:10',
     limit: 20,
   },
 };
 
 // Response type
-type NamedCyberlinksResponse = [string, number][];
-
-// Example response
-[
-  ['Profile', 1],
-  ['Type', 2],
-  // ... more named cyberlinks
-];
+type CyberlinksByFIDsResponse = [string, CyberlinkState][];
 ```
 
-#### CyberlinksByIds
+#### CyberlinksSetByFIDs
 
 ```typescript
 // Query
-interface CyberlinksByIdsQuery {
-  cyberlinks_by_ids: {
-    ids: number[];
+interface CyberlinksSetByFIDsQuery {
+  cyberlinks_set_by_f_i_ds: {
+    fids: string[];
   };
 }
 
 // Example request
-const cyberlinksByIdsQuery: CyberlinksByIdsQuery = {
-  cyberlinks_by_ids: {
-    ids: [1, 2, 3],
+const cyberlinksSetByFIDsQuery: CyberlinksSetByFIDsQuery = {
+  cyberlinks_set_by_f_i_ds: {
+    fids: ['Post:1', 'Post:2', 'Post:3'],
   },
 };
 
 // Response type
-type CyberlinksByIdsResponse = [number, CyberlinkState][];
-
-// Example response
-[
-  [
-    1,
-    {
-      type: 'Post',
-      from: 'user1',
-      to: 'Any',
-      value: 'First post',
-      owner: 'wasm1...',
-      created_at: '1683000000000000000',
-      updated_at: null,
-      formatted_id: 'Post:1',
-    },
-  ],
-  // ... more cyberlinks
-];
+type CyberlinksSetByFIDsResponse = [string, CyberlinkState][];
 ```
 
-#### CyberlinksByOwner (Paginated)
+#### CyberlinksByType
 
 ```typescript
 // Query
-interface CyberlinksByOwnerQuery {
-  cyberlinks_by_owner: {
+interface CyberlinksByTypeQuery {
+  cyberlinks_by_type: {
+    type: string;
+    start_after_gid?: number;
+    limit?: number;
+  };
+}
+
+// Example request
+const cyberlinksByTypeQuery: CyberlinksByTypeQuery = {
+  cyberlinks_by_type: {
+    type: 'Post',
+    start_after_gid: 10,
+    limit: 20,
+  },
+};
+
+// Response type
+type CyberlinksByTypeResponse = [number, CyberlinkState][];
+```
+
+#### CyberlinksByOwnerAndType
+
+```typescript
+// Query
+interface CyberlinksByOwnerAndTypeQuery {
+  cyberlinks_by_owner_and_type: {
     owner: string;
-    start_after?: number; // Optional: start after this ID
-    limit?: number; // Optional: max items to return (default: 50, max: 100)
+    type: string;
+    start_after_gid?: number;
+    limit?: number;
   };
 }
 
 // Example request
-const cyberlinksByOwnerQuery: CyberlinksByOwnerQuery = {
-  cyberlinks_by_owner: {
+const cyberlinksByOwnerAndTypeQuery: CyberlinksByOwnerAndTypeQuery = {
+  cyberlinks_by_owner_and_type: {
     owner: 'wasm1...',
-    start_after: 10,
+    type: 'Post',
+    start_after_gid: 10,
     limit: 20,
   },
 };
 
 // Response type
-type CyberlinksByOwnerResponse = [number, CyberlinkState][];
-
-// Example response
-[
-  [
-    11,
-    {
-      type: 'Post',
-      from: 'user1',
-      to: 'Any',
-      value: "Owner's post",
-      owner: 'wasm1...',
-      created_at: '1683000000000000000',
-      updated_at: null,
-      formatted_id: 'Post:11',
-    },
-  ],
-  // ... more cyberlinks
-];
+type CyberlinksByOwnerAndTypeResponse = [number, CyberlinkState][];
 ```
 
-#### CyberlinksByOwnerTime (Paginated)
+#### GetGraphStats
 
 ```typescript
 // Query
-interface CyberlinksByOwnerTimeQuery {
-  cyberlinks_by_owner_time: {
-    owner: string;
-    start_time: string; // Timestamp in nanoseconds
-    end_time?: string; // Optional: defaults to current block time
-    start_after?: number; // Optional: for pagination
-    limit?: number; // Optional: max items (default: 50, max: 100)
-  };
-}
-
-// Example request
-const cyberlinksByOwnerTimeQuery: CyberlinksByOwnerTimeQuery = {
-  cyberlinks_by_owner_time: {
-    owner: 'wasm1...',
-    start_time: '1683000000000000000',
-    end_time: '1683100000000000000',
-    start_after: 10,
-    limit: 20,
-  },
-};
-
-// Response type
-type CyberlinksByOwnerTimeResponse = [number, CyberlinkState][];
-
-// Example response
-[
-  [
-    11,
-    {
-      type: 'Post',
-      from: 'user1',
-      to: 'Any',
-      value: 'Time-based post',
-      owner: 'wasm1...',
-      created_at: '1683050000000000000',
-      updated_at: null,
-      formatted_id: 'Post:11',
-    },
-  ],
-  // ... more cyberlinks
-];
-```
-
-#### CyberlinksByOwnerTimeAny (Paginated)
-
-```typescript
-// Query
-interface CyberlinksByOwnerTimeAnyQuery {
-  cyberlinks_by_owner_time_any: {
-    owner: string;
-    start_time: string; // Timestamp in nanoseconds
-    end_time?: string; // Optional: defaults to current block time
-    start_after?: number; // Optional: for pagination
-    limit?: number; // Optional: max items (default: 50, max: 100)
-  };
-}
-
-// Example request
-const cyberlinksByOwnerTimeAnyQuery: CyberlinksByOwnerTimeAnyQuery = {
-  cyberlinks_by_owner_time_any: {
-    owner: 'wasm1...',
-    start_time: '1683000000000000000',
-    end_time: '1683100000000000000',
-    start_after: 10,
-    limit: 20,
-  },
-};
-
-// Response type
-type CyberlinksByOwnerTimeAnyResponse = [number, CyberlinkState][];
-
-// Example response
-[
-  [
-    11,
-    {
-      type: 'Post',
-      from: 'user1',
-      to: 'Any',
-      value: 'Updated post',
-      owner: 'wasm1...',
-      created_at: '1683000000000000000',
-      updated_at: '1683050000000000000',
-      formatted_id: 'Post:11',
-    },
-  ],
-  // ... more cyberlinks
-];
-```
-
-#### CyberlinkByFormattedId
-
-```typescript
-// Query
-interface CyberlinkByFormattedIdQuery {
-  cyberlink_by_formatted_id: {
-    formatted_id: string;
-  };
-}
-
-// Example request
-const cyberlinkByFormattedIdQuery: CyberlinkByFormattedIdQuery = {
-  cyberlink_by_formatted_id: {
-    formatted_id: "Post:1"
-  }
-};
-
-// Response type
-type CyberlinkByFormattedIdResponse = CyberlinkState;
-
-// Example response
-{
-  type: "Post",
-  from: "user1",
-  to: "Any",
-  value: "First post",
-  owner: "wasm1...",
-  created_at: "1683000000000000000",
-  updated_at: null,
-  formatted_id: "Post:1"
-}
-```
-
-#### GetGraphStats (New)
-
-```typescript
 interface GetGraphStatsQuery {
   get_graph_stats: {
     owner?: string;
-    type_?: string;
+    type?: string;
   };
 }
 
-// Example: Get stats for a specific user and type
+// Example request
 const getGraphStatsQuery: GetGraphStatsQuery = {
   get_graph_stats: {
     owner: 'wasm1...',
-    type_: 'Post',
+    type: 'Post',
   },
 };
 
 // Response type
 interface CountsResponse {
   owner_count?: Uint64; // Total cyberlinks by owner
-  type_count?: Uint64; // Total cyberlinks of type
-  owner_type_count?: Uint64; // Total cyberlinks by owner of type
+  typecount?: Uint64; // Total cyberlinks of type
+  owner_typecount?: Uint64; // Total cyberlinks by owner of type
 }
-```
-
-#### CyberlinksByType (New)
-
-```typescript
-interface CyberlinksByTypeQuery {
-  cyberlinks_by_type: {
-    type_: string;
-    start_after_gid?: number;
-    limit?: number;
-  };
-}
-
-// Example
-const cyberlinksByTypeQuery: CyberlinksByTypeQuery = {
-  cyberlinks_by_type: {
-    type_: 'Post',
-    limit: 10,
-  },
-};
-```
-
-#### CyberlinksByFrom/To (New)
-
-```typescript
-interface CyberlinksByFromQuery {
-  cyberlinks_by_from: {
-    from: string;
-    start_after_gid?: number;
-    limit?: number;
-  };
-}
-
-interface CyberlinksByToQuery {
-  cyberlinks_by_to: {
-    to: string;
-    start_after_gid?: number;
-    limit?: number;
-  };
-}
-
-// Example
-const cyberlinksByFromQuery: CyberlinksByFromQuery = {
-  cyberlinks_by_from: {
-    from: 'Profile:1',
-    limit: 10,
-  },
-};
 ```
 
 ## Graph Building Scenarios
@@ -1058,7 +815,8 @@ const cyberlinksByFromQuery: CyberlinksByFromQuery = {
     node_value: "Blockchain",
     link_type: "Definition",
     link_value: "A decentralized, distributed ledger technology",
-    link_to_existing_id: "Reference:1"
+    link_to_existing_id: "Reference:1",
+    link_from_existing_id: "Reference:2",
   }
 }
 
@@ -1107,12 +865,12 @@ The contract may return the following errors:
 
 ## Notes
 
-- All timestamps should be in ISO 8601 format
+- All timestamps are in nanoseconds since the Unix epoch
 - Maximum limit for pagination is 100 items
 - Default limit is 50 items
 - Gas prices and fees may vary based on network conditions
 - Always test transactions on testnet before mainnet deployment
-- Cyberlinks have both numeric IDs and formatted IDs (e.g., "Post:1")
+- Cyberlinks have both numeric IDs (GID) and formatted IDs (FID, e.g., "Post:1")
 - Type changes and link changes (from/to) are not allowed after creation
 - The contract supports semantic cores for predefined type systems
 
@@ -1135,7 +893,7 @@ The contract provides two different time-based query methods:
    - Results are deduplicated (no duplicate IDs) and sorted
    - If a cyberlink was both created and updated in the time range, it appears only once
 
-### Statistics and Counters (New)
+### Statistics and Counters
 
 The contract maintains several counters for analytics:
 
@@ -1156,7 +914,7 @@ const query = {
 // Get stats for a specific type
 const query = {
   get_graph_stats: {
-    type_: 'Post',
+    type: 'Post',
   },
 };
 
@@ -1164,7 +922,23 @@ const query = {
 const query = {
   get_graph_stats: {
     owner: 'wasm1...',
-    type_: 'Post',
+    type: 'Post',
   },
 };
 ```
+
+### ID Types
+
+The contract uses two types of IDs:
+
+1. **Global ID (GID)**
+
+   - Numeric, auto-incrementing identifier
+   - Internal use and efficient indexing
+   - Used in many query responses
+
+2. **Formatted ID (FID)**
+   - String format: "{type}:{number}"
+   - More human-readable
+   - Used in most user-facing operations
+   - Required for update and delete operations
