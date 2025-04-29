@@ -1,0 +1,44 @@
+name: Deploy mcp-cw-graph Image
+
+on:
+  workflow_run:
+    workflows: ["Build and Push Docker Image"]  # <<< match the exact name of build_docker.yml
+    types:
+      - completed
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          port: ${{ secrets.PORT }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          script: |
+            sudo -i <<EOF
+
+            echo "Logging into GitHub Container Registry..."
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+
+            echo "Pulling the latest Docker image..."
+            docker pull ghcr.io/${{ github.repository }}:latest
+
+            echo "Stopping and removing old container if it exists..."
+            docker rm -f mcp-cw-graph || true
+
+            echo "Starting new container with volume and network..."
+            docker run -d --name mcp-cw-graph \
+              --restart always \
+              --network open-webui-postgres_default \
+              -v /root/mcp-cw-graph/mcp.json:/root/.cursor/mcp.json \
+              ghcr.io/${{ github.repository }}:latest
+
+            echo "Pruning old Docker images..."
+            docker image prune -f
+
+            EOF
