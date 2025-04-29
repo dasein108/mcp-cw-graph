@@ -7,7 +7,7 @@ import { TxCyberlinkResponseResult, TxStatusResponse } from './types';
 import { sanitizeQueryResult } from './utils';
 
 // Fields to extract from cyberlink event
-const FIELD_NAMES = ['numeric_id', 'numeric_ids', 'formatted_id', 'formatted_ids'];
+const FIELD_NAMES = ['gid', 'gids', 'fid', 'fids'];
 
 export abstract class CyberlinkBaseService {
   protected readonly contractAddress: string;

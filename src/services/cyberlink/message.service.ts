@@ -50,14 +50,14 @@ export class CyberlinkMessageService {
     node_value?: string;
     link_type: string;
     link_value?: string;
-    link_from_existing_id?: string;
-    link_to_existing_id?: string;
+    link_from_existing_gid?: string;
+    link_to_existing_gid?: string;
   }): any {
     return {
       create_cyberlink2: removeEmptyValues({
         ...args,
-        node_value: stringifyValue(args.node_value),
-        link_value: stringifyValue(args.link_value),
+        node_value: args.node_value ? stringifyValue(args.node_value) : undefined,
+        link_value: args.link_value ? stringifyValue(args.link_value) : undefined,
       }),
     };
   }
@@ -79,16 +79,32 @@ export class CyberlinkMessageService {
     };
   }
 
-  updateCyberlinkMsg(id: number, cyberlink: Cyberlink): any {
+  updateCyberlinkMsg(gid: number, cyberlink: Cyberlink): any {
     return {
       update_cyberlink: {
-        id,
+        gid,
         cyberlink: this.processCyberlink(cyberlink),
       },
     };
   }
 
-  deleteCyberlinkMsg(id: number): any {
-    return { delete_cyberlink: { id } };
+  deleteCyberlinkMsg(gid: number): any {
+    return { delete_cyberlink: { gid } };
+  }
+
+  updateAdminsMsg(newAdmins: string[]): any {
+    return {
+      update_admins: {
+        new_admins: newAdmins,
+      },
+    };
+  }
+
+  updateExecutorsMsg(newExecutors: string[]): any {
+    return {
+      update_executors: {
+        new_executors: newExecutors,
+      },
+    };
   }
 }

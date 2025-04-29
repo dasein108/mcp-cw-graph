@@ -3,18 +3,18 @@ import { IndexedTx } from '@cosmjs/stargate';
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { CyberlinkBaseService } from './base.service';
 import {
-    ConfigResponse,
-    CyberlinkByFormattedIdResponse,
-    CyberlinkResponse,
-    CyberlinksByIdsResponse,
-    CyberlinksByOwnerResponse,
-    CyberlinksByOwnerTimeAnyResponse,
-    CyberlinksByOwnerTimeResponse,
-    CyberlinksResponse,
-    CyberlinkState,
-    DebugStateResponse,
-    LastIdResponse,
-    NamedCyberlinksResponse,
+  ConfigResponse,
+  CyberlinkByFormattedIdResponse,
+  CyberlinkResponse,
+  CyberlinksByIdsResponse,
+  CyberlinksByOwnerResponse,
+  CyberlinksByOwnerTimeAnyResponse,
+  CyberlinksByOwnerTimeResponse,
+  CyberlinksResponse,
+  CyberlinkState,
+  DebugStateResponse,
+  LastIdResponse,
+  NamedCyberlinksResponse,
 } from './types';
 import { removeEmptyValues } from './utils';
 
@@ -38,7 +38,9 @@ export class CyberlinkQueryService extends CyberlinkBaseService {
     } catch (error) {
       throw new McpError(
         ErrorCode.InternalError,
-        `Failed to initialize query service: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Failed to initialize query service: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
       );
     }
   }
@@ -83,9 +85,9 @@ export class CyberlinkQueryService extends CyberlinkBaseService {
     );
   }
 
-  async queryByFormattedId(formattedId: string): Promise<CyberlinkByFormattedIdResponse> {
+  async queryByFormattedId(fid: string): Promise<CyberlinkByFormattedIdResponse> {
     return this.executeQuery<CyberlinkByFormattedIdResponse>(
-      { cyberlink_by_formatted_id: { formatted_id: formattedId } },
+      { cyberlink_by_f_i_d: { fid: fid } },
       false
     );
   }
@@ -131,7 +133,7 @@ export class CyberlinkQueryService extends CyberlinkBaseService {
   }
 
   async queryLastId(): Promise<LastIdResponse> {
-    return this.executeQuery<LastIdResponse>({ last_id: {} }, false);
+    return this.executeQuery<LastIdResponse>({ last_g_i_d: {} }, false);
   }
 
   async queryDebugState(): Promise<DebugStateResponse> {
@@ -168,21 +170,21 @@ export class CyberlinkQueryService extends CyberlinkBaseService {
     return this.executeQuery<ConfigResponse>({ config: {} }, false);
   }
 
-  async queryById(id: number): Promise<CyberlinkResponse> {
-    return this.executeQuery<CyberlinkResponse>({ cyberlink_by_id: { id } }, false);
+  async queryById(gid: string): Promise<CyberlinkResponse> {
+    return this.executeQuery<CyberlinkResponse>({ cyberlink_by_g_i_d: { gid } }, false);
   }
 
-  async queryByIds(ids: number[]): Promise<CyberlinksByIdsResponse> {
-    return this.executeQuery<CyberlinksByIdsResponse>({ cyberlinks_by_ids: { ids } }, false);
+  async queryByIds(gids: string[]): Promise<CyberlinksByIdsResponse> {
+    return this.executeQuery<CyberlinksByIdsResponse>({ cyberlinks_by_g_i_ds: { gids } }, false);
   }
 
   async queryCyberlinksByType(
-    type_: string,
+    type: string,
     startAfterGid?: number,
     limit: number = 50
   ): Promise<CyberlinksResponse> {
     return this.executeQuery<CyberlinksResponse>(
-      { cyberlinks_by_type: { type_, ...this.createPaginationParams(startAfterGid, limit) } },
+      { cyberlinks_by_type: { type, ...this.createPaginationParams(startAfterGid, limit) } },
       false
     );
   }
@@ -251,7 +253,7 @@ export class CyberlinkQueryService extends CyberlinkBaseService {
 
   async getGraphStats(
     owner?: string,
-    type_?: string
+    type?: string
   ): Promise<{
     owner_count?: string;
     type_count?: string;
@@ -261,7 +263,7 @@ export class CyberlinkQueryService extends CyberlinkBaseService {
       {
         get_graph_stats: removeEmptyValues({
           owner,
-          type_,
+          type,
         }),
       },
       false
@@ -287,12 +289,32 @@ export class CyberlinkQueryService extends CyberlinkBaseService {
    * @returns Transformed results
    */
   private transformResults(results: [number, CyberlinkState][]): Record<number, CyberlinkState> {
-    return results.reduce(
-      (acc, [id, state]) => {
-        acc[id] = { ...state };
-        return acc;
+    return results.reduce((acc, [id, state]) => {
+      acc[id] = { ...state };
+      return acc;
+    }, {} as Record<number, CyberlinkState>);
+  }
+
+  // Add a public wrapper for getTxStatus
+  public async getTxStatus(transactionHash: string): Promise<import('./types').TxStatusResponse> {
+    return super.getTxStatus(transactionHash);
+  }
+
+  async queryCyberlinksByOwnerAndType(
+    owner: string,
+    type: string,
+    startAfterGid?: number,
+    limit: number = 50
+  ): Promise<CyberlinksResponse> {
+    return this.executeQuery<CyberlinksResponse>(
+      {
+        cyberlinks_by_owner_and_type: {
+          owner,
+          type,
+          ...this.createPaginationParams(startAfterGid, limit),
+        },
       },
-      {} as Record<number, CyberlinkState>
+      false
     );
   }
 }
