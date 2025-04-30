@@ -1,0 +1,57 @@
+name: Deploy and Build on Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH and Build
+        uses: appleboy/ssh-action@master
+        env:
+          MCPO_API_KEY: ${{ secrets.MCPO_API_KEY }}
+        with:
+          host: ${{ secrets.HOST }}
+          port: ${{ secrets.PORT }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          script: |
+            set -e
+            sudo -i <<EOF
+
+            echo "Navigating to project directory..."
+            cd /root/mcp-cw-graph
+
+            echo "Pulling latest code from main..."
+            git pull origin main
+
+            echo "Installing dependencies..."
+            npm ci
+
+            echo "Building project..."
+            npm run build
+
+            echo "Build succeeded. Proceeding with Docker container update..."
+
+            echo "Stopping and removing existing 'mcpo' container if it exists..."
+            docker rm -f mcpo || true
+
+            echo "Starting new 'mcpo' container..."
+            docker run -d \
+              --name mcpo \
+              --restart always \
+              --network open-webui-postgres_default \
+              -p 8000:8000 \
+              -v /root/mcp-cw-graph/mcp.json:/mcp.json \
+              -v /root/mcp-cw-graph/dist/index.js:/index.js \
+              ghcr.io/open-webui/mcpo:main \
+              --config /mcp.json \
+              --api-key "${{ secrets.MCPO_API_KEY }}"
+
+            echo "Deployment complete."
+
+            EOF

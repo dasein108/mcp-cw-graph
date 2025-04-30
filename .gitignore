@@ -4,3 +4,4 @@ node_modules
 .clinerules
 dist
 .vscode
+mcp.json
