@@ -41,11 +41,15 @@ jobs:
             docker rm -f mcpo || true
 
             echo "Starting new 'mcpo' container..."
-            docker run -d --name mcpo \
+            docker run -d \
+              --name mcpo \
               --restart always \
               --network open-webui-postgres_default \
               -p 8000:8000 \
+              -v /root/mcp-cw-graph/mcp.json:/mcp.json \
+              -v /root/mcp-cw-graph/dist/index.js:/index.js \
               ghcr.io/open-webui/mcpo:main \
+              --config /mcp.json \
               --api-key "${{ secrets.MCPO_API_KEY }}"
 
             echo "Deployment complete."
