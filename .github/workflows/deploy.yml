@@ -47,7 +47,7 @@ jobs:
               --network open-webui-postgres_default \
               -p 8000:8000 \
               -v /root/mcp-cw-graph/mcp.json:/mcp.json \
-              -v /root/mcp-cw-graph/dist:/dist \
+              -v /root/mcp-cw-graph/dist:/ \
               -v /root/mcp-cw-graph/node_modules:/node_modules \
               ghcr.io/open-webui/mcpo:main \
               --config /mcp.json \
