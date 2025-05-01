@@ -15,8 +15,14 @@ export class CyberlinkTxService extends CyberlinkBaseService {
   private readonly nodeUrl: string;
   private readonly walletMnemonic: string;
   private readonly denom: string;
-
-  constructor(nodeUrl: string, walletMnemonic: string, contractAddress: string, denom: string) {
+  private readonly prefix: string;
+  constructor(
+    nodeUrl: string,
+    walletMnemonic: string,
+    contractAddress: string,
+    denom: string,
+    prefix: string
+  ) {
     super(contractAddress);
     if (!nodeUrl) throw new Error('Missing NODE_URL');
     if (!walletMnemonic) throw new Error('Missing WALLET_MNEMONIC');
@@ -24,15 +30,16 @@ export class CyberlinkTxService extends CyberlinkBaseService {
     this.nodeUrl = nodeUrl;
     this.walletMnemonic = walletMnemonic;
     this.denom = denom || 'stake';
+    this.prefix = prefix || 'wasm';
   }
 
   async initialize(): Promise<void> {
     try {
       this.wallet = await DirectSecp256k1HdWallet.fromMnemonic(this.walletMnemonic, {
-        prefix: 'wasm',
+        prefix: this.prefix,
       });
 
-      const gasPrice = GasPrice.fromString(`0.025${this.denom}`);
+      const gasPrice = GasPrice.fromString(`0.15${this.denom}`);
 
       this.signingClient = await SigningCosmWasmClient.connectWithSigner(
         this.nodeUrl,
@@ -45,7 +52,8 @@ export class CyberlinkTxService extends CyberlinkBaseService {
       throw new McpError(
         ErrorCode.InternalError,
         `Failed to initialize transaction service: ${
-          error instanceof Error ? error.message : 'Unknown error'
+          (error instanceof Error ? error.message : 'Unknown error',
+          `\r\nnodeUrl: ${this.nodeUrl} [ ${this.contractAddress} ] `)
         }`
       );
     }

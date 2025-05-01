@@ -5,33 +5,33 @@ A Model Context Protocol (MCP) server for interacting with the CW-Social smart c
 ## Features
 
 - **Core Operations**
-  - Full CRUD operations for cyberlinks
-  - Named cyberlink support
-  - Batch operations
-  - Rich query capabilities
+  - Create, read, update, and delete cyberlinks
+  - Support for named cyberlinks with custom identifiers
+  - Batch operations for efficient processing
+  - Rich query capabilities with filtering and pagination
 - **Transaction Management**
 
-  - Real-time transaction monitoring
-  - Automatic status polling
-  - Detailed transaction results
-  - Support for both internal and external signing
+  - Real-time transaction monitoring and status polling
+  - Detailed transaction results and error handling
+  - Support for both internal and external transaction signing
+  - Token transfer capabilities
 
 - **Advanced Features**
-  - Semantic embedding generation using Hugging Face transformers
-  - Real-time progress tracking for model loading
-  - Cosine similarity calculations
-  - Support for fids (formatted IDs) and numeric IDs
-  - Time-range based queries
-  - Owner-based filtering
+  - Semantic embedding generation via Hugging Face transformers
+  - Real-time progress tracking for model operations
+  - Cosine similarity calculations for semantic matching
+  - Flexible ID system with formatted IDs (fids) and global IDs (gids)
+  - Time-range based queries with UTC support
+  - Owner-based filtering and statistics
 
 ## Prerequisites
 
-- Node.js 16+
-- npm or yarn
-- Access to a Cosmos blockchain node
-- Wallet with funds for transactions
-- [Cursor IDE](https://cursor.sh/)
-- [Claude Desktop](https://claude.ai/desktop)
+- Node.js 16 or higher
+- npm or yarn package manager
+- Access to a running Cosmos blockchain node
+- Wallet with sufficient funds for transactions
+- [Cursor IDE](https://cursor.sh/) for development
+- [Claude Desktop](https://claude.ai/desktop) for AI assistance
 
 ## Installation
 
@@ -54,11 +54,13 @@ npm install
 npm run build
 ```
 
+4. Configure environment variables (see Configuration section)
+
 ## Configuration
 
-### Setting up MCP Integration
+### MCP Server Setup
 
-Create or edit the configuration file at `~/.cursor/mcp.json`:
+Create or modify the configuration file at `~/.cursor/mcp.json`:
 
 ```json
 {
@@ -70,125 +72,202 @@ Create or edit the configuration file at `~/.cursor/mcp.json`:
         "NODE_URL": "http://localhost:26657",
         "WALLET_MNEMONIC": "your wallet mnemonic phrase",
         "CONTRACT_ADDRESS": "your contract address",
-        "DENOM": "stake"
+        "DENOM": "stake",
+        "PREFIX": "cyber"
       }
     }
   }
 }
 ```
 
-Required Configuration:
+### Required Configuration
 
-- `PATH_TO_YOUR_PROJECT`: Absolute path to your project
-- `NODE_URL`: Your Cosmos node URL
-- `CONTRACT_ADDRESS`: Your deployed contract address
+Required environment variables:
 
-Optional Configuration:
+- `PATH_TO_YOUR_PROJECT`: Absolute path to project directory
+- `NODE_URL`: Cosmos blockchain node URL
+- `CONTRACT_ADDRESS`: Deployed smart contract address
 
-- `WALLET_MNEMONIC`: Your wallet's mnemonic phrase (if not set, transactions will be returned unsigned)
-- `DENOM`: Token denomination (defaults to 'stake')
+### Optional Configuration
+
+Optional environment variables:
+
+- `WALLET_MNEMONIC`: Wallet mnemonic for signing (default: none - transactions will be unsigned)
+- `DENOM`: Token denomination (default: "stake")
+- `PREFIX`: BECH32 prefix
 
 ## Available Tools
 
 ### Cyberlink Management
 
-#### Creation
+#### Creation Tools
 
-- `create_cyberlink`: Create a new cyberlink
+**create_cyberlink**
 
-  - Required: `type`
-  - Optional: `from`, `to`, `value`
+- Description: Create single cyberlink
+- Required: `type`
+- Optional: `from`, `to`, `value`
 
-- `create_cyberlink2`: Create a node and link it in one transaction
+**create_cyberlink2**
 
-  - Required: `node_type`, `link_type`
-  - Optional: `node_value`, `link_value`, `link_to_existing_id`, `link_from_existing_id`
+- Description: Create node + link
+- Required: `node_type`, `link_type`
+- Optional: `node_value`, `link_value`, `link_to_existing_id`, `link_from_existing_id`
 
-- `create_named_cyberlink`: Create a named cyberlink (admin only)
+**create_named_cyberlink**
 
-  - Required: `name`, `cyberlink` object
+- Description: Create named cyberlink (admin only)
+- Required: `name`, `cyberlink`
 
-- `create_cyberlinks`: Create multiple cyberlinks in batch
-  - Required: `cyberlinks` array
+**create_cyberlinks**
 
-#### Modification
+- Description: Batch create cyberlinks
+- Required: `cyberlinks[]`
 
-- `update_cyberlink`: Update existing cyberlink
+#### Modification Tools
 
-  - Required: `gid`, `cyberlink` object
+**update_cyberlink**
 
-- `delete_cyberlink`: Remove a cyberlink
+- Description: Update existing cyberlink
+- Required: `gid`, `cyberlink`
 
-  - Required: `gid`
+**delete_cyberlink**
 
-- `update_with_embedding`: Add semantic embedding
-  - Required: `formatted_id`
+- Description: Remove cyberlink
+- Required: `gid`
+
+**update_with_embedding**
+
+- Description: Add semantic embedding
+- Required: `formatted_id`
 
 ### Query Operations
 
 #### Basic Queries
 
-- `query_by_gid`: Get cyberlink by global ID
-- `query_by_fid`: Get cyberlink by formatted ID
-- `query_cyberlinks`: List all cyberlinks with pagination
-- `query_named_cyberlinks`: List named cyberlinks
-- `query_by_gids`: Get multiple cyberlinks by IDs
+**query_by_gid**
+
+- Description: Get by global ID
+- Required: `gid`
+
+**query_by_fid**
+
+- Description: Get by formatted ID
+- Required: `fid`
+
+**query_cyberlinks**
+
+- Description: List all with pagination
+- Parameters: `limit`, `start_after`
+
+**query_named_cyberlinks**
+
+- Description: List named cyberlinks
+- Parameters: `limit`, `start_after`
+
+**query_by_gids**
+
+- Description: Get multiple by IDs
+- Required: `gids[]`
 
 #### Filtered Queries
 
-- `query_cyberlinks_by_type`: Filter by type
-- `query_cyberlinks_by_from`: Filter by source node
-- `query_cyberlinks_by_to`: Filter by target node
-- `query_cyberlinks_by_owner_and_type`: Filter by owner and type
+**query_cyberlinks_by_type**
+
+- Description: Filter by type
+- Required: `type`
+
+**query_cyberlinks_by_from**
+
+- Description: Filter by source
+- Required: `from`
+
+**query_cyberlinks_by_to**
+
+- Description: Filter by target
+- Required: `to`
+
+**query_cyberlinks_by_owner_and_type**
+
+- Description: Filter by owner & type
+- Required: `owner`, `type`
 
 #### Time-Based Queries
 
-- `query_cyberlinks_by_owner_time`: Filter by owner and creation time
-- `query_cyberlinks_by_owner_time_any`: Filter by owner and creation/update time
+**query_cyberlinks_by_owner_time**
 
-#### System Queries
+- Description: Filter by creation time
+- Required: `owner`, `start_time`
 
-- `query_last_id`: Get last assigned cyberlink ID
-- `query_config`: Get contract configuration
-- `query_debug_state`: Get debug state (admin only)
-- `get_graph_stats`: Get graph statistics
+**query_cyberlinks_by_owner_time_any**
 
-### Transaction & Wallet Operations
+- Description: Filter by any time
+- Required: `owner`, `start_time`
 
-#### Transaction Management
+### System Operations
 
-- `query_transaction`: Get transaction status and result
-- `get_tx_status`: Get detailed transaction status
+#### Contract Info
 
-#### Wallet Operations
+**query_last_id**
 
-- `query_wallet_balance`: Get wallet balances
-- `send_tokens`: Transfer tokens
+- Description: Get last assigned ID
+
+**query_config**
+
+- Description: Get contract config
+
+**query_debug_state**
+
+- Description: Get debug state (admin only)
+
+**get_graph_stats**
+
+- Description: Get graph statistics
+
+#### Transaction & Wallet
+
+**query_transaction**
+
+- Description: Get tx status
+- Required: `transaction_hash`
+
+**get_tx_status**
+
+- Description: Get detailed tx status
+- Required: `transaction_hash`
+
+**query_wallet_balance**
+
+- Description: Get wallet balances
+
+**send_tokens**
+
+- Description: Transfer tokens
+- Required: `recipient`, `amount`
 
 ## Query Parameters
 
-### Time Range Parameters
+### Time Range Format
 
-- `start_time`: ISO 8601 datetime (e.g., `2024-06-01T12:00:00Z`)
-- `end_time`: Optional ISO 8601 datetime
-- All times are treated as UTC if no timezone specified
+- All timestamps must be in ISO 8601 format
+- Example: `2024-06-01T12:00:00Z`
+- UTC timezone is assumed if not specified
+- `start_time` is required, `end_time` is optional
 
-### Pagination Parameters
+### Pagination
 
-- `start_after`: Pagination cursor (string/number)
+- `start_after`: Pagination cursor
 - `limit`: Results per page (default: 50)
 
 ## Development
 
-### Building
+### Build Commands
 
 ```bash
+# Production build
 npm run build
-```
 
-### Development Mode
-
-```bash
+# Development mode
 npm run dev
 ```
 
@@ -197,32 +276,41 @@ npm run dev
 ```
 src/
 ├── index.ts                # Entry point
-├── cyberlink-service.ts    # Core operations
+├── cyberlink-service.ts    # Core service
 ├── services/
 │   ├── embedding.service.ts  # Semantic analysis
-│   └── __tests__/           # Tests
+│   └── __tests__/           # Test suite
 └── types.ts                # Type definitions
 
 cursor_rules/
-└── chat_history.mdc       # Chat history rules
+└── chat_history.mdc       # Chat rules
 ```
 
-## Error Handling
+### Error Codes
 
-Standard MCP error codes:
+**InvalidParams**
 
-- `InvalidParams`: Invalid input
-- `MethodNotFound`: Unknown tool
-- `InternalError`: System error
+- Description: Invalid parameters
+- Common causes: Missing required fields, wrong format
+
+**MethodNotFound**
+
+- Description: Unknown tool
+- Common causes: Typo in tool name, deprecated tool
+
+**InternalError**
+
+- Description: System error
+- Common causes: Network issues, contract errors
 
 ## Contributing
 
 1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-MIT License - see LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

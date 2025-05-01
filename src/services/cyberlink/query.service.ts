@@ -40,7 +40,7 @@ export class CyberlinkQueryService extends CyberlinkBaseService {
         ErrorCode.InternalError,
         `Failed to initialize query service: ${
           error instanceof Error ? error.message : 'Unknown error'
-        }`
+        }\r\nnodeUrl: ${this.nodeUrl} [ ${this.contractAddress} ] `
       );
     }
   }

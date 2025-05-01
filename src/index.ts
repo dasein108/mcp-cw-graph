@@ -438,6 +438,7 @@ async function main() {
     const contractAddress = process.env.CONTRACT_ADDRESS;
     const denom = process.env.DENOM || 'stake';
 
+    const prefix = process.env.PREFIX || 'wasm';
     const isTxServiceEnabled = walletMnemonic !== undefined;
 
     // Initialize MCP Server with high-level abstraction
@@ -457,7 +458,7 @@ async function main() {
     // Initialize CyberlinkTxService if walletMnemonic is provided
     // Otherwise, tool prepare messages for external execution
     const cyberlinkTxService = isTxServiceEnabled
-      ? new CyberlinkTxService(nodeUrl!, walletMnemonic, contractAddress!, denom)
+      ? new CyberlinkTxService(nodeUrl!, walletMnemonic, contractAddress!, denom, prefix)
       : undefined;
 
     const cyberlinkMessageService = new CyberlinkMessageService();
