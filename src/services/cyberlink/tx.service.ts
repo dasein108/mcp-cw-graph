@@ -30,7 +30,7 @@ export class CyberlinkTxService extends CyberlinkBaseService {
     this.nodeUrl = nodeUrl;
     this.walletMnemonic = walletMnemonic;
     this.denom = denom || 'stake';
-    this.prefix = prefix || 'wasm';
+    this.prefix = prefix || 'cyber';
   }
 
   async initialize(): Promise<void> {
@@ -49,13 +49,14 @@ export class CyberlinkTxService extends CyberlinkBaseService {
         }
       );
     } catch (error) {
-      throw new McpError(
-        ErrorCode.InternalError,
-        `Failed to initialize transaction service: ${
-          (error instanceof Error ? error.message : 'Unknown error',
-          `\r\nnodeUrl: ${this.nodeUrl} [ ${this.contractAddress} ] `)
-        }`
-      );
+      const errorMessage = [
+        'Failed to initialize transaction service:',
+        error instanceof Error ? error.message : 'Unknown error',
+        `nodeUrl: ${this.nodeUrl} [ ${this.contractAddress} ]`,
+        error instanceof Error && error.stack ? `Stack trace:\n${error.stack}` : '',
+      ].join('\n');
+
+      throw new McpError(ErrorCode.InternalError, errorMessage);
     }
   }
 

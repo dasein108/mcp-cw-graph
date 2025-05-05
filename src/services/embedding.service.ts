@@ -1,4 +1,7 @@
-import { pipeline } from '@huggingface/transformers';
+import { env, pipeline } from '@huggingface/transformers';
+
+// preserve cache for docker
+env.useFSCache = true;
 
 export interface ProgressState {
   status: string;

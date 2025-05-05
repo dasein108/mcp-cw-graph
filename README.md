@@ -73,7 +73,7 @@ Create or modify the configuration file at `~/.cursor/mcp.json`:
         "WALLET_MNEMONIC": "your wallet mnemonic phrase",
         "CONTRACT_ADDRESS": "your contract address",
         "DENOM": "stake",
-        "PREFIX": "cyber"
+        "BENCH32_PREFIX": "cyber"
       }
     }
   }
@@ -94,7 +94,7 @@ Optional environment variables:
 
 - `WALLET_MNEMONIC`: Wallet mnemonic for signing (default: none - transactions will be unsigned)
 - `DENOM`: Token denomination (default: "stake")
-- `PREFIX`: BECH32 prefix
+- `BENCH32_PREFIX`: BECH32 prefix
 
 ## Available Tools
 
@@ -302,6 +302,24 @@ cursor_rules/
 
 - Description: System error
 - Common causes: Network issues, contract errors
+
+## Run MCP over SSE
+
+You can run the MCP server using Docker to turn it into an SSE server. This ensures the Hugging Face model cache is persisted between runs and that environment variables are loaded from your .env file.
+
+```bash
+docker run \
+  --name cw-social \
+  -v $(pwd)/hf-cache:/app/hf-cache \
+  --env-file .env \
+  -p 8000:8000 \
+  cw-social-mcp
+```
+
+- `-v $(pwd)/hf-cache:/app/hf-cache` mounts a local directory for model caching, so models are not re-downloaded every time.
+- `--env-file .env` loads environment variables from your `.env` file.
+- `-p 8000:8000` exposes the server on port 8000.
+- `--name cw-social` names your container for easier management.
 
 ## Contributing
 
