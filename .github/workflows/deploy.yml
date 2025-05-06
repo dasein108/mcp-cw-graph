@@ -41,8 +41,8 @@ jobs:
             docker run \
               --name cw_social_mcp \
               -v $(pwd)/hf-cache:/app/hf-cache \
-              --e NODE_URL=${{ secrets.NODE_URL }}\
-              --e CONTRACT_ADDRESS=${{ secrets.GRAPH_SMART_CONTRACT_ADDRESS }}\
+              -e NODE_URL=${{ secrets.NODE_URL }}\
+              -e CONTRACT_ADDRESS=${{ secrets.GRAPH_SMART_CONTRACT_ADDRESS }}\
               -p 8000:8000 \
               cw-social-mcp
 
