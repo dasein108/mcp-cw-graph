@@ -38,7 +38,7 @@ jobs:
             docker rm -f cw_social_mcp || true
 
             echo "Starting new 'cw_social_mcp' container..."
-            docker run \
+            docker run -d \
               --name cw_social_mcp \
               -v $(pwd)/hf-cache:/app/hf-cache \
               -e NODE_URL=${{ secrets.NODE_URL }}\
