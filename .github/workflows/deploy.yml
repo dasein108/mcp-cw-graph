@@ -14,6 +14,8 @@ jobs:
         uses: appleboy/ssh-action@master
         env:
           MCPO_API_KEY: ${{ secrets.MCPO_API_KEY }}
+          NODE_URL: ${{ secrets.NODE_URL }}
+          GRAPH_SMART_CONTRACT_ADDRESS: ${{ secrets.GRAPH_SMART_CONTRACT_ADDRESS }}
         with:
           host: ${{ secrets.HOST }}
           port: ${{ secrets.PORT }}
@@ -29,29 +31,20 @@ jobs:
             echo "Pulling latest code from main..."
             git pull origin main
 
-            echo "Installing dependencies..."
-            npm ci
+            echo "Building Docker image..."
+            docker build -t cw-social-mcp .
 
-            echo "Building project..."
-            npm run build
+            echo "Stopping and removing existing 'cw_social_mcp' container if it exists..."
+            docker rm -f cw_social_mcp || true
 
-            echo "Build succeeded. Proceeding with Docker container update..."
-
-            echo "Stopping and removing existing 'mcpo' container if it exists..."
-            docker rm -f mcpo || true
-
-            echo "Starting new 'mcpo' container..."
-            docker run -d \
-              --name mcpo \
-              --restart always \
-              --network open-webui-postgres_default \
+            echo "Starting new 'cw_social_mcp' container..."
+            docker run \
+              --name cw_social_mcp \
+              -v $(pwd)/hf-cache:/app/hf-cache \
+              --e NODE_URL=${{ secrets.NODE_URL }}\
+              --e CONTRACT_ADDRESS=${{ secrets.GRAPH_SMART_CONTRACT_ADDRESS }}\
               -p 8000:8000 \
-              -v /root/mcp-cw-graph/mcp.json:/mcp.json \
-              -v /root/mcp-cw-graph/dist:/dist \
-              -v /root/mcp-cw-graph/node_modules:/node_modules \
-              ghcr.io/open-webui/mcpo:main \
-              --config /mcp.json \
-              --api-key "${{ secrets.MCPO_API_KEY }}"
+              cw-social-mcp
 
             echo "Deployment complete."
 
