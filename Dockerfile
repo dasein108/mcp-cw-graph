@@ -16,4 +16,4 @@ RUN npm ci --omit=dev
 ENV TRANSFORMERS_CACHE=/app/hf-cache
 EXPOSE 8000
 # Install supergateway at runtime (not as dependency)
-ENTRYPOINT ["npx", "-y", "supergateway", "--stdio", "node ./dist/index.js", "--cors", "*", "--port", "8000"] 
+ENTRYPOINT ["npx", "-y", "supergateway", "--stdio", "node ./dist/index.js"," --header \"X-Accel-Buffering: no\"", "--cors", "*", "--port", "8000"] 

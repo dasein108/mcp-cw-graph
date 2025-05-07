@@ -13,7 +13,6 @@ jobs:
       - name: Deploy via SSH and Build
         uses: appleboy/ssh-action@master
         env:
-          MCPO_API_KEY: ${{ secrets.MCPO_API_KEY }}
           NODE_URL: ${{ secrets.NODE_URL }}
           GRAPH_SMART_CONTRACT_ADDRESS: ${{ secrets.GRAPH_SMART_CONTRACT_ADDRESS }}
         with:
