@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/dasein108-mcp-cw-graph-badge.png)](https://mseep.ai/app/dasein108-mcp-cw-graph)
+
 # Cyberlink MCP Server
 
 A Model Context Protocol (MCP) server for interacting with the CW-Social smart contract on Cosmos-based blockchains. This server provides a standardized interface for creating, updating, and querying cyberlinks - semantic relationships between entities on the blockchain.
